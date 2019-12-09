@@ -36,12 +36,10 @@ def buildevents(df, fatjet='FatJet', usemask=False):
                 df[f'{fatjet}_phi'],
                 df[f'{fatjet}_mass'],
             ),
-            msoftdrop=ak.MaskedArray(df[f'{fatjet}_msoftdrop'] <= 0, df[f'{fatjet}_msoftdrop']) if usemask else np.maximum(1e-5, df[f'{fatjet}_msoftdrop']),
+            # msoftdrop=ak.MaskedArray(df[f'{fatjet}_msoftdrop'] <= 0, df[f'{fatjet}_msoftdrop']) if usemask else np.maximum(1e-5, df[f'{fatjet}_msoftdrop']),
+            msoftdrop=df[f'{fatjet}_msoftdrop'],
             area=df[f'{fatjet}_area'],
             n2=df[f'{fatjet}_n2b1'],
-            btagDDBvL=df[f'{fatjet}_btagDDBvL'],
-            btagDDCvL=df[f'{fatjet}_btagDDCvL'],
-            btagDDCvB=df[f'{fatjet}_btagDDCvB'],
             jetId=df[f'{fatjet}_jetId'],
         ),
     )
@@ -91,8 +89,13 @@ def buildevents(df, fatjet='FatJet', usemask=False):
                 df['Muon_phi'],
                 df['Muon_mass'],
             ),
+            sip3d=df['Muon_sip3d'],
+            dxy=df['Muon_dxy'],
+            dz=df['Muon_dz'],
+            mvaId=df['Muon_mvaId'],
             looseId=df['Muon_looseId'],
             pfRelIso04_all=df['Muon_pfRelIso04_all'],
+            miniPFRelIso_all=df['Muon_miniPFRelIso_all'], 
         ),
     )
 
