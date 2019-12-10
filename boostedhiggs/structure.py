@@ -41,6 +41,7 @@ def buildevents(df, fatjet='FatJet', usemask=False):
             area=df[f'{fatjet}_area'],
             n2=df[f'{fatjet}_n2b1'],
             jetId=df[f'{fatjet}_jetId'],
+            lsf3=df[f'{fatjet}_lsf3'],
         ),
     )
 

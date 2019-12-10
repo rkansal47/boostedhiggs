@@ -57,7 +57,8 @@ class HwwProcessor(processor.ProcessorABC):
 
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         jetpt_axis = hist.Bin("jet_pt", r"Jet $p_T$", 20, 200, 1000)
-        jetlsf3_axis = hist.Bin("jet_lsf3", r"Jet LSF_3", 20, 0, 1)
+        jetlsf3_axis = hist.Bin("jet_lsf3", r"Jet LSF$_3$", 20, 0, 1)
+        jetmmass_axis = hist.Bin("jet_mmass",r"Jet - Lep Mass", 20, 0, 100)
 
         hists = processor.dict_accumulator()
         hist.Hist.DEFAULT_DTYPE = 'f'
@@ -66,6 +67,7 @@ class HwwProcessor(processor.ProcessorABC):
                                         dataset_axis,
                                         jetpt_axis,
                                         jetlsf3_axis,
+                                        jetmmass_axis,
                                         )
 
         self._accumulator = hists
@@ -141,9 +143,9 @@ class HwwProcessor(processor.ProcessorABC):
         selection.add('muonkin', (
             (leadingmuon.p4.pt > 27.)
             & (np.abs(leadingmuon.p4.eta) < 2.4)
-        ))
+            ))
 
-        # build mass variables
+        # building variables
         leadingjet_mu = leadingjet_mu.flatten()
         mm = (leadingjet_mu.p4 - leadingmuon.p4).mass2 
         jmass = (mm>0)*np.sqrt(np.maximum(0, mm)) + (mm<0)*leadingjet_mu.p4.mass # (jet - lep).M  
@@ -160,6 +162,11 @@ class HwwProcessor(processor.ProcessorABC):
                 )
             )
         met_p4 = TLorentzVectorArray.from_ptetaphim(met.rho, met_eta, met.phi, np.zeros(met.size))
+
+        df['jet_pt'] = leadingjet_mu.p4.pt
+        df['jet_lsf3'] = leadingjet_mu.lsf3
+        df['jet_mmass'] = jmass
+
         #cut = (leadingjet_mu.p4.pt > 200) & (mm > 0)
         
         # fill cutflow
@@ -175,10 +182,9 @@ class HwwProcessor(processor.ProcessorABC):
             weights.add('genweight', events.genWeight)
 
         regions = {}
-        regions['preselection'] = {}            
+        regions['presel'] = allcuts
 
-        hout = self.accumulator.identity()
-        for histname, h in hout.items():
+        for histname, h in output.items():
             if not isinstance(h, hist.Hist):
                 continue
             if not all(k in df or k == 'systematic' for k in h.fields):
@@ -186,6 +192,16 @@ class HwwProcessor(processor.ProcessorABC):
                 continue
             fields = {k: df[k] for k in h.fields if k in df}
             region = [r for r in regions.keys() if r in histname.split('_')]
+            if len(region) == 1:
+                region = region[0]
+                print(regions[region])
+                cut = selection.all(*regions[region])
+                print(cut.any())
+                h.fill(**fields, weight=cut)
+            elif len(region) > 1:
+                raise ValueError("Histogram '%s' has a name matching multiple region definitions: %r" % (histname, region))
+            else:
+                raise ValueError("Histogram '%s' does not fall into any region definitions." % (histname, ))
 
         return output
 
