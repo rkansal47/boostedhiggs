@@ -58,17 +58,31 @@ class HwwProcessor(processor.ProcessorABC):
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         jetpt_axis = hist.Bin("jet_pt", r"Jet $p_T$", 20, 200, 1000)
         jetlsf3_axis = hist.Bin("jet_lsf3", r"Jet LSF$_3$", 20, 0, 1)
-        jetmmass_axis = hist.Bin("jet_mmass",r"Jet - Lep Mass", 20, 0, 100)
-
+        jetmmass_axis = hist.Bin("jet_mmass",r"Jet - Lep Mass", 20, -100, 100)
+        jethmass_axis = hist.Bin("jet_hmass",r"Higgs Jet + MET Mass", 20, 0, 1000)
+        jetoppbtag_axis = hist.Bin("jet_oppbtag",r"Jet Opposite AK4 b-tag", 20, 0, 1)
+        muonpt_axis = hist.Bin("muon_pt", r"Muon $p_T$", 20, 0, 400)
+        muonmiso_axis = hist.Bin("muon_miso", r"Muon mini PF ISO (total)", 20, 0, 1)
+        metpt_axis = hist.Bin("met_pt", r"MET $p_T$", 20, 0, 100)
+        meteta_axis = hist.Bin("met_eta", r"MET $\eta$", 20, -4, 4)
         hists = processor.dict_accumulator()
         hist.Hist.DEFAULT_DTYPE = 'f'
         hists['cutflow'] = processor.defaultdict_accumulator(float)
-        hists['presel_jet'] = hist.Hist("Events / GeV",
-                                        dataset_axis,
-                                        jetpt_axis,
-                                        jetlsf3_axis,
-                                        jetmmass_axis,
-                                        )
+        for region in ['presel','muinjet']:
+            hists['%s_jet'%region] = hist.Hist("Events / GeV",
+                                               dataset_axis,
+                                               jetpt_axis,
+                                               jetlsf3_axis,
+                                               jetmmass_axis,
+                                               jethmass_axis,
+                                               jetoppbtag_axis)
+            hists['%s_muonevt'%region] = hist.Hist("Events / GeV",
+                                                   muonpt_axis,
+                                                   muonmiso_axis,
+                                                   metpt_axis,
+                                                   meteta_axis
+                                                   )
+
 
         self._accumulator = hists
 
@@ -122,7 +136,12 @@ class HwwProcessor(processor.ProcessorABC):
                 & (leadingjet_mu.msoftdrop > 10.)
                 ).any())
         selection.add('jetid', (leadingjet_mu.jetId & 2).any())  # tight id 
-        
+
+        # lepton inside jet?
+        selection.add('muinside', mu_in_cone.astype(bool))
+        selection.add('LSF3muinside', (leadingjet_mu.electronIdx3SJ == 0).any())
+        selection.add('LSF3medium', (leadingjet_mu.lsf3>0.78).any())
+
         # veto b-tag in opposite side
         jets = events.jets[
             (events.jets.p4.pt > 30.)
@@ -132,6 +151,9 @@ class HwwProcessor(processor.ProcessorABC):
         dphi = ak4_ak8_pair.i0.p4.delta_phi(ak4_ak8_pair.i1.p4)
         ak4_opposite = jets[(np.abs(dphi) > np.pi / 2).all()]
         selection.add('antiak4btagMediumOppHem', ak4_opposite.deepcsvb.max() < self._btagWPs['med'][self._year])
+
+        # b-tag in same side
+        #subjets = events.subjets[:, leadingjet_mu.subJetIdx1]
 
         # final lepton selection
         nelectrons = (
@@ -163,14 +185,19 @@ class HwwProcessor(processor.ProcessorABC):
             )
         met_p4 = TLorentzVectorArray.from_ptetaphim(met.rho, met_eta, met.phi, np.zeros(met.size))
 
+        # filling missing columns
         df['jet_pt'] = leadingjet_mu.p4.pt
         df['jet_lsf3'] = leadingjet_mu.lsf3
         df['jet_mmass'] = jmass
+        df['jet_hmass'] = (met_p4 + leadingjet_mu.p4).mass
+        df['jet_oppbtag'] = ak4_opposite.deepcsvb.max()
+        df['muon_pt'] = leadingmuon.p4.pt
+        df['muon_miso'] = leadingmuon.miniPFRelIso_all
+        df['met_pt'] = met.rho
+        df['met_eta'] = met_eta
 
-        #cut = (leadingjet_mu.p4.pt > 200) & (mm > 0)
-        
         # fill cutflow
-        cutflow = ['trigger', 'jetkin', 'jetid', 'antiak4btagMediumOppHem', 'onemuon', 'muonkin']
+        cutflow = ['trigger', 'jetkin', 'jetid', 'antiak4btagMediumOppHem', 'onemuon', 'muonkin', 'muinside', 'LSF3muinside','LSF3muinside']
         allcuts = set()
         output['cutflow']['none'] += len(events)
         for cut in cutflow:
@@ -182,7 +209,8 @@ class HwwProcessor(processor.ProcessorABC):
             weights.add('genweight', events.genWeight)
 
         regions = {}
-        regions['presel'] = allcuts
+        regions['presel'] = {'trigger', 'jetkin', 'jetid', 'antiak4btagMediumOppHem', 'onemuon', 'muonkin'}
+        regions['muinjet'] = {'trigger', 'jetkin', 'jetid', 'antiak4btagMediumOppHem', 'onemuon', 'muonkin', 'muinside', 'LSF3muinside','LSF3muinside'}
 
         for histname, h in output.items():
             if not isinstance(h, hist.Hist):
@@ -194,9 +222,7 @@ class HwwProcessor(processor.ProcessorABC):
             region = [r for r in regions.keys() if r in histname.split('_')]
             if len(region) == 1:
                 region = region[0]
-                print(regions[region])
                 cut = selection.all(*regions[region])
-                print(cut.any())
                 h.fill(**fields, weight=cut)
             elif len(region) > 1:
                 raise ValueError("Histogram '%s' has a name matching multiple region definitions: %r" % (histname, region))
