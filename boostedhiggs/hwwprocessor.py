@@ -1,6 +1,5 @@
 import numpy as np
 from coffea import processor,hist
-from .structure import buildevents
 from uproot_methods import TLorentzVectorArray
 
 class HwwProcessor(processor.ProcessorABC):
@@ -18,39 +17,39 @@ class HwwProcessor(processor.ProcessorABC):
         self._trigger = trigger
         self._triggers = {
             '2016_had': [
-                "HLT_PFHT800",
-                "HLT_PFHT900",
-                "HLT_AK8PFJet360_TrimMass30",
-                'HLT_AK8PFHT700_TrimR0p1PT0p03Mass50',
-                "HLT_PFHT650_WideJetMJJ950DEtaJJ1p5",
-                "HLT_PFHT650_WideJetMJJ900DEtaJJ1p5",
-                "HLT_AK8DiPFJet280_200_TrimMass30_BTagCSV_p20",
-                "HLT_PFJet450",
+                "PFHT800",
+                "PFHT900",
+                "AK8PFJet360_TrimMass30",
+                'AK8PFHT700_TrimR0p1PT0p03Mass50',
+                "PFHT650_WideJetMJJ950DEtaJJ1p5",
+                "PFHT650_WideJetMJJ900DEtaJJ1p5",
+                "AK8DiPFJet280_200_TrimMass30_BTagCSV_p20",
+                "PFJet450",
             ],
             '2017_had': [
-                "HLT_AK8PFJet330_PFAK8BTagCSV_p17",
-                "HLT_PFHT1050",
-                "HLT_AK8PFJet400_TrimMass30",
-                "HLT_AK8PFJet420_TrimMass30",
-                "HLT_AK8PFHT800_TrimMass50",
-                "HLT_PFJet500",
-                "HLT_AK8PFJet500",
+                "AK8PFJet330_PFAK8BTagCSV_p17",
+                "PFHT1050",
+                "AK8PFJet400_TrimMass30",
+                "AK8PFJet420_TrimMass30",
+                "AK8PFHT800_TrimMass50",
+                "PFJet500",
+                "AK8PFJet500",
             ],
             '2018_had': [
-                'HLT_AK8PFJet400_TrimMass30',
-                'HLT_AK8PFJet420_TrimMass30',
-                'HLT_AK8PFHT800_TrimMass50',
-                'HLT_PFHT1050',
-                'HLT_PFJet500',
-                'HLT_AK8PFJet500',
-                'HLT_AK8PFJet330_PFAK8BTagCSV_p17',
-                "HLT_AK8PFJet330_TrimMass30_PFAK8BoostedDoubleB_np4",
+                'AK8PFJet400_TrimMass30',
+                'AK8PFJet420_TrimMass30',
+                'AK8PFHT800_TrimMass50',
+                'PFHT1050',
+                'PFJet500',
+                'AK8PFJet500',
+                'AK8PFJet330_PFAK8BTagCSV_p17',
+                "AK8PFJet330_TrimMass30_PFAK8BoostedDoubleB_np4",
             ],
             '2018_muon': [
-                'HLT_Mu50','HLT_Mu55'
+                'Mu50','Mu55'
             ],
             '2018_electron': [
-                'HLT_Ele27_WPTight_Gsf','HLT_Ele40_WPTight_Gsf','HLT_Ele20_WPLoose_Gsf','HLT_Ele115_CaloIdVT_GsfTrkIdT'
+                'Ele27_WPTight_Gsf','Ele40_WPTight_Gsf','Ele20_WPLoose_Gsf','Ele115_CaloIdVT_GsfTrkIdT'
             ],
 
         }
@@ -91,48 +90,46 @@ class HwwProcessor(processor.ProcessorABC):
         return self._accumulator
 
     def process(self, df):
-        dataset = df['dataset']
-        isRealData = 'genWeight' not in df
+        dataset = df.metadata['dataset']
+        isRealData = 'genWeight' not in df.columns
         isSignal = 'hww' in dataset
         output = self.accumulator.identity()
+        selection = processor.PackedSelection()
 
         # select at least one jet and one muon ( this is Pre-Selection! )                                                                                                       
-        events = buildevents(df, fatjet='CustomAK8Puppi')
         good = (
-            (events.muons.counts >= 1)
-            & (events.fatjets.counts >= 1)
+            (df.Muon.counts >= 1)
+            & (df.CustomAK8Puppi.counts >= 1)
             )
-        events = events[good]
-
-        selection = processor.PackedSelection()
+        events = df[good]
+        
         # trigger
         trigger = np.ones(df.size, dtype='bool')
         for t in self._triggers[self._year+'_'+self._trigger]:
-            trigger &= df[t]
+            trigger = trigger & df.HLT[t]
         selection.add('trigger', trigger[good])
 
         # muon selection
         goodmuon = (
-            (events.muons.p4.pt > 10)
-            & (np.abs(events.muons.p4.eta) < 2.4)
-            & (events.muons.sip3d < 4)
-            & (np.abs(events.muons.dz) < 0.1)
-            & (np.abs(events.muons.dxy) < 0.05)
-            & (events.muons.mvaId == 2)
+            (events.Muon.pt > 10)
+            & (np.abs(events.Muon.eta) < 2.4)
+            & (events.Muon.sip3d < 4)
+            & (np.abs(events.Muon.dz) < 0.1)
+            & (np.abs(events.Muon.dxy) < 0.05)
+            & (events.Muon.mvaId == 2)
         )
         nmuons = goodmuon.sum()
-        leadingmuon = events.muons[goodmuon][:, 0:1]
+        leadingmuon = events.Muon[goodmuon].pad(1, clip=True).flatten()
 
         # fatjet closest to lepton 
-        leadingmuon = events.muons[:, 0]
-        mujet_dR = leadingmuon.p4.delta_r(events.fatjets.p4)
+        mujet_dR = leadingmuon.delta_r(events.CustomAK8Puppi)
         mu_in_cone = mujet_dR.min() < 0.8 # this I am not sure we have to put as a selection...
         mujet_bestidx = mujet_dR.argmin()
-        leadingjet_mu = events.fatjets[mujet_bestidx]
+        leadingjet_mu = events.CustomAK8Puppi[mujet_bestidx].pad(1, clip=True).flatten()
 
         selection.add('jetkin', (
-                (leadingjet_mu.p4.pt > 300)
-                & (leadingjet_mu.p4.eta < 2.4)
+                (leadingjet_mu.pt > 300)
+                & (leadingjet_mu.eta < 2.4)
                 & (leadingjet_mu.msoftdrop > 10.)
                 ).any())
         selection.add('jetid', (leadingjet_mu.jetId & 2).any())  # tight id 
@@ -143,55 +140,59 @@ class HwwProcessor(processor.ProcessorABC):
         selection.add('LSF3medium', (leadingjet_mu.lsf3>0.78).any())
 
         # veto b-tag in opposite side
-        jets = events.jets[
-            (events.jets.p4.pt > 30.)
-            & (events.jets.jetId & 2)  # tight id
+        jets = events.Jet[
+            (events.Jet.pt > 30.)
+            & (events.Jet.jetId & 2)  # tight id
             ]
         ak4_ak8_pair = jets.cross(leadingjet_mu, nested=True)
-        dphi = ak4_ak8_pair.i0.p4.delta_phi(ak4_ak8_pair.i1.p4)
+        dphi = ak4_ak8_pair.i0.delta_phi(ak4_ak8_pair.i1)
         ak4_opposite = jets[(np.abs(dphi) > np.pi / 2).all()]
-        selection.add('antiak4btagMediumOppHem', ak4_opposite.deepcsvb.max() < self._btagWPs['med'][self._year])
+        selection.add('antiak4btagMediumOppHem', ak4_opposite.btagDeepB.max() < self._btagWPs['med'][self._year])
 
         # b-tag in same side
-        #subjets = events.subjets[:, leadingjet_mu.subJetIdx1]
+        #print(leadingjet_mu.columns)
+        #subjets = events.CustomAK8PuppiSubJet[:, leadingjet_mu.subJetIdx1]
 
         # final lepton selection
         nelectrons = (
-            (events.electrons.p4.pt > 10)
-            & (np.abs(events.electrons.p4.eta) < 2.5)
-            & (events.electrons.cutBased & (1 << 2)).astype(bool)  # 2017V2 loose                                                                                                    
+            (events.Electron.pt > 10)
+            & (np.abs(events.Electron.eta) < 2.5)
+            & (events.Electron.cutBased & (1 << 2)).astype(bool)  # 2017V2 loose                                                                                                    
         ).sum()
         selection.add('onemuon', (nmuons == 1) & (nelectrons == 0)) # should we veto taus?                                                                                                          
         selection.add('muonkin', (
-            (leadingmuon.p4.pt > 27.)
-            & (np.abs(leadingmuon.p4.eta) < 2.4)
+            (leadingmuon.pt > 27.)
+            & (np.abs(leadingmuon.eta) < 2.4)
             ))
 
         # building variables
-        leadingjet_mu = leadingjet_mu.flatten()
-        mm = (leadingjet_mu.p4 - leadingmuon.p4).mass2 
-        jmass = (mm>0)*np.sqrt(np.maximum(0, mm)) + (mm<0)*leadingjet_mu.p4.mass # (jet - lep).M  
+        leadingjet_mu_p4 = TLorentzVectorArray.from_ptetaphim(leadingjet_mu.pt, leadingjet_mu.eta, leadingjet_mu.phi, leadingjet_mu.msoftdrop)
+        leadingmuon_p4 = TLorentzVectorArray.from_ptetaphim(leadingmuon.pt,leadingmuon.eta,leadingmuon.phi, leadingmuon.mass)
+        print(leadingjet_mu_p4,leadingmuon_p4)
 
-        met = events.met
-        joffshell = jmass < 62.5
+        mm = (leadingjet_mu_p4 - leadingmuon_p4).mass2 
+        jmass = (mm>0)*np.sqrt(np.maximum(0, mm)) + (mm<0)*leadingjet_mu.mass # (jet - lep).M  
+
+        met = events.MET
+        joffshell = jmass < 125/2  # halfway point between offshell and onshell W
         massassumption = 80.*joffshell + (125 - 80.)*~joffshell
-        x = massassumption**2/(2*leadingmuon.p4.pt*met.rho) + np.cos(leadingmuon.p4.phi - met.phi)
+        x = massassumption**2/(2*leadingmuon.pt*met.pt) + np.cos(leadingmuon.phi - met.phi)
         met_eta = (
-            (x < 1)*np.arcsinh(x*np.sinh(leadingmuon.p4.eta))
-            + (x >= 1)*(
-                leadingmuon.p4.eta
-                - np.sign(leadingmuon.p4.eta)*np.arccosh(np.maximum(1., x))
+            (x < 1)*np.arcsinh(x*np.sinh(leadingmuon.eta))
+            + (x > 1)*(
+                leadingmuon.eta - np.sign(leadingmuon.eta)*np.arccosh(leadingmuon.eta)
                 )
             )
-        met_p4 = TLorentzVectorArray.from_ptetaphim(met.rho, met_eta, met.phi, np.zeros(met.size))
+        print(met_eta)
+        met_p4 = TLorentzVectorArray.from_ptetaphim(met.pt, met_eta.fillna(0.), met.phi, np.zeros(met.size))
 
         # filling missing columns
-        df['jet_pt'] = leadingjet_mu.p4.pt
+        df['jet_pt'] = leadingjet_mu.pt
         df['jet_lsf3'] = leadingjet_mu.lsf3
         df['jet_mmass'] = jmass
-        df['jet_hmass'] = (met_p4 + leadingjet_mu.p4).mass
-        df['jet_oppbtag'] = ak4_opposite.deepcsvb.max()
-        df['muon_pt'] = leadingmuon.p4.pt
+        df['jet_hmass'] = (met_p4 + leadingjet_mu).mass
+        df['jet_oppbtag'] = ak4_opposite.btagDeepB.max()
+        df['muon_pt'] = leadingmuon.pt
         df['muon_miso'] = leadingmuon.miniPFRelIso_all
         df['met_pt'] = met.rho
         df['met_eta'] = met_eta
