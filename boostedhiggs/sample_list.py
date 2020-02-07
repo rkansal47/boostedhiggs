@@ -91,7 +91,8 @@ def get2017files(idirLpcBacon,idirLpcBaconUL,sample='all'):
                             'QCD_HT50to100_TuneCP5_PSWeights_13TeV-madgraphMLM-pythia8',
                             'QCD_HT1500to2000_TuneCP5_PSWeights_13TeV-madgraphMLM-pythia8',
                             'QCD_HT700to1000_TuneCP5_PSWeights_13TeV-madgraphMLM-pythia8',
-                            'QCD_HT2000toInf_TuneCP5_PSWeights_13TeV-madgraphMLM-pythia8'
+                            'QCD_HT2000toInf_TuneCP5_PSWeights_13TeV-madgraphMLM-pythia8',
+                            #'QCD_HT500to700_TuneCP5_PSWeights_13TeV-madgraphMLM-pythia8',
                             ],
                 'dir': idirLpcBaconUL,
                 'path': 'pancakes-02_RunIISummer19UL17MiniAOD-106X_v6-v2',
