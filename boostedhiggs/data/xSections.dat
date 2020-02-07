@@ -458,6 +458,6 @@ BulkGravToWW_narrow_M_3000_13TeV_madgraph 1
 BulkGravToWW_narrow_M_3500_13TeV_madgraph 1
 BulkGravToWW_narrow_M_4500_13TeV_madgraph 1
 
-GluGluHToWWToLNuQQ_M125_TuneCP5_PSweight_13TeV-powheg2-jhugen727-pythia8 1
-hww_mc 3.799e-01
-hwwmc 3.799e-01
+GluGluHToWWToLNuQQ_M125_TuneCP5_PSweight_13TeV-powheg2-jhugen727-pythia8 28.88
+hww_mc 0.3799
+hwwmc 0.3799
