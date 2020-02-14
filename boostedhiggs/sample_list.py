@@ -119,6 +119,7 @@ def expand(path,idir,midpath,dryrun=False):
     expandedPaths.extend(new_content)
     return expandedPaths 
 
+# expand path and sub dirs (if not hadd)
 def expandPath(dicts,pathhadd='',dryrun=False):
     rdict = {}
     for sample,sampleDict in dicts.iteritems():
@@ -146,6 +147,7 @@ def haddNano(output,listToHadd,outDir,sample,idir=''):
     command += 'rm  %s/%s \n'%(tmpdir,output)
     return command,outHadd
 
+# my fav utility
 def slice_it(li, cols=2):
     start = 0
     for i in xrange(cols):
@@ -168,6 +170,7 @@ def main(args):
     lnewjson = {}
     ltmpjson = {}
 
+    # get json of files
     if args.haddread:
         lnewjson = expandPath(lfiles,idirLpcBacon+'/hadd')
         lnewjson1 = expandPath(lfiles,idirLpcBaconUL+'/hadd')

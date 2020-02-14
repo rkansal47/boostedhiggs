@@ -1,8 +1,9 @@
 import numpy as np
-from coffea import processor,hist
+from coffea import processor,hist,util
 from uproot_methods import TLorentzVectorArray
-from .corrections import compiled
+from boostedhiggs.corrections import compiled
 import warnings
+import argparse
 
 class HwwProcessor(processor.ProcessorABC):
     def __init__(self, year='2018', trigger='muon'):
@@ -201,8 +202,11 @@ class HwwProcessor(processor.ProcessorABC):
                 leadingmuon.eta - np.sign(leadingmuon.eta)*np.arccosh(leadingmuon.eta)
                 )
             )
-        met_p4 = TLorentzVectorArray.from_ptetaphim(met.pt, met_eta.fillna(0.), met.phi, np.zeros(met.size))
 
+        met_p4 = TLorentzVectorArray.from_ptetaphim(np.array([0.]),np.array([0.]),np.array([0.]),np.array([0.]))
+        if met.size > 0:
+            met_p4 = TLorentzVectorArray.from_ptetaphim(met.pt, met_eta.fillna(0.), met.phi, np.zeros(met.size)) 
+            
         # fill cutflow
         cutflow = ['trigger', 'jetkin', 'onemuon', 'antibtag', 'LSF3medium']
         allcuts = set()
@@ -250,10 +254,11 @@ class HwwProcessor(processor.ProcessorABC):
                            muon_miso = normalize(leadingmuon.miniPFRelIso_all),
                            dataset=dataset,weight=weight)
                 elif '_metprop' in histname:
-                    h.fill(met_pt = met.pt.flatten(),
-                           met_eta = normalize(met_p4.eta),
-                           met_phi = met.phi.flatten(),
-                           dataset=dataset,weight=weight)
+                    if met.size > 0:
+                        h.fill(met_pt = met.pt.flatten(),
+                               met_eta = normalize(met_p4.eta),
+                               met_phi = met.phi.flatten(),
+                               dataset=dataset,weight=weight)
                 elif '_jetprop' in histname:
                     h.fill(jet_oppbtag = ak4_opposite.btagDeepB.max().flatten(),
                            dataset=dataset,weight=weight)
@@ -281,3 +286,13 @@ class HwwProcessor(processor.ProcessorABC):
                 h.scale(scale, axis="dataset")
 
         return accumulator
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Boosted Hbb processor')
+    parser.add_argument('--year', choices=['2016', '2017', '2018'], default='2017', help='Which data taking year to correct MC to.')
+    parser.add_argument('--trigger', choices=['muon','electron','had'], default='muon', help='trigger selection')
+    args = parser.parse_args()
+
+    processor_instance = HwwProcessor(year=args.year,trigger=args.trigger)
+
+    util.save(processor_instance, 'hwwprocessor.coffea')
