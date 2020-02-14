@@ -122,7 +122,7 @@ def expand(path,idir,midpath,dryrun=False):
 # expand path and sub dirs (if not hadd)
 def expandPath(dicts,pathhadd='',dryrun=False):
     rdict = {}
-    for sample,sampleDict in dicts.iteritems():
+    for sample,sampleDict in dicts.items():
         d={} 
         for subSname in sampleDict['samples']:
             if pathhadd != '':
@@ -130,8 +130,8 @@ def expandPath(dicts,pathhadd='',dryrun=False):
             else:
                 expandedPath = expand(subSname,sampleDict['dir'],sampleDict['path'],dryrun)
             if len(expandedPath)==0:
-                print "ERROR: %s has no files"%(subSname)
-                print "Trying to expand path with %s"%sampleDict['path']
+                print("ERROR: %s has no files"%subSname)
+                print("Trying to expand path with %s"%sampleDict['path'])
             d[subSname] = expandedPath 
         rdict[sample] =  d
     return rdict
@@ -150,7 +150,7 @@ def haddNano(output,listToHadd,outDir,sample,idir=''):
 # my fav utility
 def slice_it(li, cols=2):
     start = 0
-    for i in xrange(cols):
+    for i in range(0,cols):
         stop = start + len(li[i::cols])
         yield li[start:stop]
         start = stop
@@ -234,8 +234,8 @@ def main(args):
 
     outf = open("data/%s.json"%outname,"w")
     outf.write((json.dumps(finaljson,indent=4)))
-    for key,tfiles in sorted(finaljson.iteritems()):
-        print "list of samples used by %s =  "%key, sorted(tfiles.keys())
+    for key,tfiles in sorted(finaljson.items()):
+        print("list of samples used by %s =  "%key, sorted(tfiles.keys()))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='List files')
