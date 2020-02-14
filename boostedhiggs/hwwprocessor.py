@@ -288,7 +288,7 @@ class HwwProcessor(processor.ProcessorABC):
         return accumulator
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Boosted Hbb processor')
+    parser = argparse.ArgumentParser(description='Boosted HWW processor')
     parser.add_argument('--year', choices=['2016', '2017', '2018'], default='2017', help='Which data taking year to correct MC to.')
     parser.add_argument('--trigger', choices=['muon','electron','had'], default='muon', help='trigger selection')
     args = parser.parse_args()
