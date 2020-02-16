@@ -61,24 +61,30 @@ def main(args):
         ds_torun = args.ds.split(',')
 
 
-    os.system('tar -zcf boostedhiggs.tgz boostedhiggs/')
-    exePython = 'hww_condor.py'
-    os.system('cp binder/%s .'%exePython)
-    files = ['coffeaenv.tar.gz','boostedhiggs.tgz']
-    files += exePython
-    odir = 'hww_%s_%s'%(args.year,args.trigger)
-    os.system('mkdir -p /eos/uscms/store/user/cmantill/hww/%s/'%odir)
-    os.system('mkdir -p condor/')
-    os.system('mkdir -p condor/error')
-    os.system('mkdir -p condor/output')
+    odir = 'hww_%s_%s'%(args.year,args.trigger)                                                                                                                                 
+    os.system('mkdir -p /eos/uscms/store/user/cmantill/hww/%s/'%odir)                                                                                                     
+    os.system('mkdir -p condor/')                                                                                                                                               
+    os.system('mkdir -p condor/error')                                                                                                                                           
+    os.system('mkdir -p condor/output')                                                                                                                                           
     os.system('mkdir -p condor/log')
+    os.system('tar -zcf boostedhiggs.tgz boostedhiggs/')
+    cwd = os.getcwd()
+    os.chdir('condor/')
+    print(os.getcwd())
+    os.system('cp ../coffeaenv.tar.gz .')
+    os.system('cp ../boostedhiggs.tgz .')
+    exePython = 'hww_condor.py'
+    os.system('cp ../binder/%s .'%exePython)
+    files = ['coffeaenv.tar.gz','boostedhiggs.tgz',exePython]
+    odir = 'hww_%s_%s'%(args.year,args.trigger)
 
     for ds in ds_torun:
         command='python %s --year %s --trigger %s --fileset %s --ds %s'%(exePython,args.year,args.trigger,args.trigger,ds)
-        write_bash('condor/runjob_%s.sh'%ds, command=command,files=files,odir=odir)
-        write_condor('condor/runjob_%s.sh'%ds,arguments = [], files =files,nqueue=1)
+        write_bash('runjob_%s.sh'%ds, command=command,files=files,odir=odir)
+        write_condor('runjob_%s.sh'%ds,arguments = [], files =files,nqueue=1)
         
     os.system('rm %s'%exePython)
+    os.chdir(cwd)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Submit to condor')
