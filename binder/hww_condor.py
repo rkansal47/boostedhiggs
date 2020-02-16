@@ -15,7 +15,9 @@ def main(args):
     ds = args.ds
     files = {}
     for process, processds in datasets.items():
-        files[ds] = {'files': processds[ds], 'treename': 'Events'}
+        for ids, flist in processds.items():
+            if ids != ds: continue
+            files[ds] = {'files': flist, 'treename': 'Events'}
         
     p = HwwProcessor(year=args.year,trigger=args.trigger)
 

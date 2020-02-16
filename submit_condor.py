@@ -24,12 +24,19 @@ def write_bash(temp = 'runjob.sh', command = '', files = [],odir=''):
     out = '#!/bin/bash\n'
     # add arguments
     out += 'date\n'
-    out += 'MAINDIR=`pwd`\n'
     out += 'ls\n'
     for f in files:
         if '.tgz' in f or '.gz'  in f:
             out += 'tar -zxf %s \n'%f
+    out += 'source coffeaenv/bin/activate.csh \n'
+    out += "python -c 'import coffea' \n"
+    out += 'tcsh coffeaenv/bin/activate.csh \n'
+    out += "python -c 'import coffea' \n"
+    out += 'bash coffeaenv/bin/activate \n'
+    out += "python -c 'import coffea' \n"
     out += 'source coffeaenv/bin/activate \n'
+    out += "python -c 'import coffea' \n"
+
     out += command + '\n'
     out += 'ls -lrth \n'
     out += 'xrdcp output*.coffea root://cmseos.fnal.gov//store/user/cmantill/hww/%s/ \n'%odir
@@ -79,11 +86,10 @@ def main(args):
     odir = 'hww_%s_%s'%(args.year,args.trigger)
 
     for ds in ds_torun:
-        command='python %s --year %s --trigger %s --fileset %s --ds %s'%(exePython,args.year,args.trigger,args.trigger,ds)
+        command='python %s --year %s --trigger %s --fileset %s --ds %s'%(exePython,args.year,args.trigger,args.fileset,ds)
         write_bash('runjob_%s.sh'%ds, command=command,files=files,odir=odir)
         write_condor('runjob_%s.sh'%ds,arguments = [], files =files,nqueue=1)
         
-    os.system('rm %s'%exePython)
     os.chdir(cwd)
 
 if __name__ == '__main__':
