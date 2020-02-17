@@ -68,8 +68,8 @@ process_map["h125"] = [
 process_map["hwwlnu"] = [
     'GluGluHToWWToLNuQQ_M125_TuneCP5_PSweight_13TeV-powheg2-jhugen727-pythia8',
 ]
-process_map["gghww"] = [
-    'hwwlnu',
+process_map["hww_private"] = [
+    'gghww',
 ]
 
 def apply(h):
