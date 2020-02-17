@@ -131,7 +131,7 @@ class HwwProcessor(processor.ProcessorABC):
             output['sumw'][dataset] += events.genWeight.sum()
 
         # trigger
-        trigger = np.ones(df.size, dtype='bool')
+        trigger = np.zeros(df.size, dtype='bool')
         for t in self._triggers[self._year+'_'+self._trigger]:
             trigger = trigger | df.HLT[t]
         selection.add('trigger', trigger[good])
