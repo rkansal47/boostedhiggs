@@ -28,12 +28,6 @@ def write_bash(temp = 'runjob.sh', command = '', files = [],odir=''):
     for f in files:
         if '.tgz' in f or '.gz'  in f:
             out += 'tar -zxf %s \n'%f
-    out += 'source coffeaenv/bin/activate.csh \n'
-    out += "python -c 'import coffea' \n"
-    out += 'tcsh coffeaenv/bin/activate.csh \n'
-    out += "python -c 'import coffea' \n"
-    out += 'bash coffeaenv/bin/activate \n'
-    out += "python -c 'import coffea' \n"
     out += 'source coffeaenv/bin/activate \n'
     out += "python -c 'import coffea' \n"
 
@@ -53,10 +47,12 @@ def main(args):
             datasets = datasetlist
 
     mc_hww = [
-        'qcd','tt','tt-had','vv','st',
+        'qcd','tt','vv','st',
         'zll','zll-ht200','zll-ht1200','wlnu-v1','wlnu-v2','wlnu-v3','wqq','zqq',
-        'hwwlnu', #'gghwwlnu'
+        'hwwlnu', 'gghwwlnu',
+        'tt-had'
     ]
+    #mc_hww = ['tt-had']
 
     ds_torun = []
     if args.ds == 'all':
@@ -68,7 +64,7 @@ def main(args):
         ds_torun = args.ds.split(',')
 
 
-    odir = 'hww_%s_%s'%(args.year,args.trigger)                                                                                                                                 
+    odir = 'hww_%s_%s_%s'%(args.year,args.trigger,args.tag) 
     os.system('mkdir -p /eos/uscms/store/user/cmantill/hww/%s/'%odir)                                                                                                     
     os.system('mkdir -p condor/')                                                                                                                                               
     os.system('mkdir -p condor/error')                                                                                                                                           
@@ -83,7 +79,6 @@ def main(args):
     exePython = 'hww_condor.py'
     os.system('cp ../binder/%s .'%exePython)
     files = ['coffeaenv.tar.gz','boostedhiggs.tgz',exePython]
-    odir = 'hww_%s_%s'%(args.year,args.trigger)
 
     for ds in ds_torun:
         command='python %s --year %s --trigger %s --fileset %s --ds %s'%(exePython,args.year,args.trigger,args.fileset,ds)
@@ -98,6 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--trigger', choices=['muon','electron','had'], default='muon', help='trigger selection')
     parser.add_argument('--fileset', default='boostedhiggs/data/hwwfiles_2017_hadd.json', help='fileset')
     parser.add_argument('--ds', default='all', help ='choose a dataset or run on all')
+    parser.add_argument('--tag', default='', help ='output tag')
     args = parser.parse_args()
     
     main(args)
