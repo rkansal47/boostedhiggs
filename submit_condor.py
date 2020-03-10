@@ -10,6 +10,7 @@ def write_condor(exe='runjob.sh', arguments = [], files = [],nqueue=1):
     out += 'Should_Transfer_Files = YES\n'
     out += 'WhenToTransferOutput = ON_EXIT\n'
     out += 'Transfer_Input_Files = %s,%s\n'%(exe,','.join(files))
+    out += 'request_memory = 2.8GB\n'
     out += 'Output = output/%s_$(Cluster)_$(Process).stdout\n'%job_name
     out += 'Error  = error/%s_$(Cluster)_$(Process).stderr\n'%job_name
     out += 'Log    = log/%s_$(Cluster)_$(Process).log\n'   %job_name
@@ -34,6 +35,7 @@ def write_bash(temp = 'runjob.sh', command = '', files = [],odir=''):
     out += command + '\n'
     out += 'ls -lrth \n'
     out += 'xrdcp output*.coffea root://cmseos.fnal.gov//store/user/cmantill/hww/%s/ \n'%odir
+    out += 'rm output*.coffea \n'
     out += 'date\n'
     with open(temp, 'w') as f:
         f.write(out)
@@ -46,25 +48,45 @@ def main(args):
             if dsgroup != args.year: continue
             datasets = datasetlist
 
-    mc_hww = [
-        'qcd','tt','vv','st',
-        'zll','zll-ht200','zll-ht1200','wlnu-v1','wlnu-v2','wlnu-v3','wqq','zqq',
-        'hwwlnu', 'gghwwlnu',
-        'tt-had'
-    ]
-    #mc_hww = ['tt-had']
+    mc_hww = {'qcd': 30,
+              'tt': 60,
+              'vv': 10,
+              'st': 20,
+              'zll': 10,
+              'zll-ht200': 10,
+              'zll-ht1200': 10,
+              'wlnu-v1': 10,
+              'wlnu-v2': 10,
+              'wlnu-v3': 10,
+              'wqq': 10,
+              'zqq': 10,
+              'hwwlnu': 2, 
+              #'gghwwlnu': 1,
+              'tt-had': 75,
+              'JetHT': 40,
+              #'SingleMuon': 40,
+              #'SingleElectron': 40,
+              'hww_private': 10,
+          }
 
     ds_torun = []
-    if args.ds == 'all':
-        for process, processds in datasets.items():
-            if process not in mc_hww: continue
-            for ds, flist in processds.items():
-                ds_torun.append(ds)
-    else:
-        ds_torun = args.ds.split(',')
+    for process, processds in datasets.items():
+        if process not in mc_hww.keys(): continue
+        if args.ds != 'all':
+            if process not in args.ds.split(','): continue
+        if args.channel=='muon': 
+            if process=='SingleElectron': continue
+            if process=='JetHT' and args.trigger=='muon': continue
+            if process=='SingleMuon' and args.trigger=='had': continue
+        if args.channel=='electron':
+            if process=='SingleMuon': continue
+            if process=='JetHT' and args.trigger=='electron': continue
+            if process=='SingleElectron' and args.trigger=='had': continue
+        for ds, flist in processds.items():
+            ds_torun.append([ds,mc_hww[process]])
 
-
-    odir = 'hww_%s_%s_%s'%(args.year,args.trigger,args.tag) 
+    print('ds_torun ',ds_torun)
+    odir = 'hww_%s_trigger%s_channel%s_%s'%(args.year,args.trigger,args.channel,args.tag) 
     os.system('mkdir -p /eos/uscms/store/user/cmantill/hww/%s/'%odir)                                                                                                     
     os.system('mkdir -p condor/')                                                                                                                                               
     os.system('mkdir -p condor/error')                                                                                                                                           
@@ -73,25 +95,26 @@ def main(args):
     os.system('tar -zcf boostedhiggs.tgz boostedhiggs/')
     cwd = os.getcwd()
     os.chdir('condor/')
-    print(os.getcwd())
     os.system('cp ../coffeaenv.tar.gz .')
     os.system('cp ../boostedhiggs.tgz .')
     exePython = 'hww_condor.py'
-    os.system('cp ../binder/%s .'%exePython)
+    os.system('cp ../%s .'%exePython)
     files = ['coffeaenv.tar.gz','boostedhiggs.tgz',exePython]
 
-    for ds in ds_torun:
-        command='python %s --year %s --trigger %s --fileset %s --ds %s'%(exePython,args.year,args.trigger,args.fileset,ds)
-        write_bash('runjob_%s.sh'%ds, command=command,files=files,odir=odir)
-        write_condor('runjob_%s.sh'%ds,arguments = [], files =files,nqueue=1)
+    for ds,nsplit in ds_torun:
+        command='python %s --year %s --trigger %s --channel %s --regions %s --fileset %s --ds %s --nsplit %i --isplit ${1}'%(exePython,args.year,args.trigger,args.channel,args.regions,args.fileset,ds,nsplit)
+        write_bash('runjob_%s.sh'%ds.replace('/',''), command=command,files=files,odir=odir)
+        write_condor('runjob_%s.sh'%ds.replace('/',''),arguments = [], files =files,nqueue=nsplit)
         
     os.chdir(cwd)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Submit to condor')
     parser.add_argument('--year', choices=['2016', '2017', '2018'], default='2017', help='Which data taking year to correct MC to.')
-    parser.add_argument('--trigger', choices=['muon','electron','had'], default='muon', help='trigger selection')
-    parser.add_argument('--fileset', default='boostedhiggs/data/hwwfiles_2017_hadd.json', help='fileset')
+    parser.add_argument('--trigger', choices=['muon','electron','had','muonall','electronall'], default='muon', help='trigger selection')
+    parser.add_argument('--channel', choices=['muon','electron'], default='muon', help='channel')
+    parser.add_argument('--regions', default='presel', help='regions')
+    parser.add_argument('--fileset', default='boostedhiggs/data/hwwfiles_2017.json', help='fileset')
     parser.add_argument('--ds', default='all', help ='choose a dataset or run on all')
     parser.add_argument('--tag', default='', help ='output tag')
     args = parser.parse_args()
