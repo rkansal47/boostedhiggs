@@ -483,5 +483,5 @@ BulkGravToWW_narrow_M_4500_13TeV_madgraph 1
 GluGluHToWWToLNuQQ_M125_TuneCP5_PSweight_13TeV-powheg2-jhugen727-pythia8 28.88
 hww_mc 0.3799
 hwwmc 0.3799
-
+hww_2017mc_UL/Pancakes_v2 0.3799
 GluGluToHHTo2B2WToLNu2J_node_SM_TuneCP5_13TeV-madgraph_correctedcfg 1

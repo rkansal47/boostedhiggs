@@ -10,6 +10,8 @@ from fileset import get2017files
 
 fdirLpcBacon = 'root://cmseos.fnal.gov//store/user/lpcbacon/pancakes/02/'
 fdirLpcBaconUL = 'root://cmseos.fnal.gov//store/user/lpcbacon/pancakes/02/UL/'
+fdirLxplusUL = 'root://eoscms.cern.ch//store/group/phys_exotica/dijet/dazsle/hww/'
+
 fdataSamples = ['SingleMuon','SingleElectron','JetHT','MET']
 
 cmssw = os.getenv('CMSSW_VERSION', 'CMSSW_10_2_6')
@@ -164,7 +166,7 @@ def main(args):
 
     lfiles = {}
     if year == '2017':
-        lfiles = get2017files(idirLpcBacon,idirLpcBaconUL,isample)
+        lfiles = get2017files(idirLpcBacon,idirLpcBaconUL,fdirLxplusUL,isample)
 
     finaljson = {}
     lnewjson = {}

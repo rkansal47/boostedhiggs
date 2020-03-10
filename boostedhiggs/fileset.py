@@ -1,4 +1,4 @@
-def get2017files(idirLpcBacon,idirLpcBaconUL,sample='all'):
+def get2017files(idirLpcBacon,idirLpcBaconUL,idirLxplusUL,sample='all'):
 
     tfiles = {
         'wqq': {'samples': ['WJetsToQQ_HT400to600_qc19_3j_TuneCP5_13TeV-madgraphMLM-pythia8',
@@ -225,6 +225,11 @@ def get2017files(idirLpcBacon,idirLpcBaconUL,sample='all'):
                 'path': '',
                 'tohadd': 20,
             },
+        'hww_private':{'samples':['hww_2017mc_UL/Pancakes_v2'],
+                       'dir':idirLxplusUL,
+                       'path': '',
+                       'tohadd': 20,
+                   }
     }
 
     if sample=='all':
