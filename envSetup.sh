@@ -7,7 +7,7 @@ source ${LCG}/setup.sh
 python -m venv --copies $NAME
 source $NAME/bin/activate
 python -m pip install setuptools pip --upgrade
-python -m pip install "coffea>=0.6.31"
+python -m pip install "coffea>=0.6.34"
 python -m pip install xxhash
 
 sed -i '40s/.*/VIRTUAL_ENV="$(cd "$(dirname "$(dirname "${BASH_SOURCE[0]}" )")" \&\& pwd)"/' $NAME/bin/activate
