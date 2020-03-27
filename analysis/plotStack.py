@@ -91,6 +91,8 @@ def drawStack(h,var_name,var_label,lumifb,sel,vars_cut,save=False,drawData=False
         for ih,proc in enumerate(x.identifiers('process')):
             pass_template = (x.integrate('process', proc))
             name = "%s_pass" % (proc.name)
+            if 'data_obs' in proc.name:
+                name = 'data_obs_pass'
             if 'hww_private' in proc.name:
                 print('scaling by hpt',proc)
                 pass_template.scale(scalehpt)
@@ -110,7 +112,8 @@ def drawStack(h,var_name,var_label,lumifb,sel,vars_cut,save=False,drawData=False
 
     fig,ax = plt.subplots(1,1, figsize=(8,8))
     hist.plot1d(x[bkg],
-                overlay='process',ax=ax,
+                overlay='process',
+                ax=ax,
                 clear=False,
                 stack=True,
                 fill_opts=fill_opts,
@@ -150,9 +153,8 @@ def drawStack(h,var_name,var_label,lumifb,sel,vars_cut,save=False,drawData=False
 def getPlots(args):
     lumifb = args.lumi
     hist_name = args.sel
-    tag = args.tag+'_'+hist_name
 
-    odir = 'plots/%s/'%tag
+    odir = 'plots/%s/%s/'%(args.tag,hist_name)
     os.system('mkdir -p %s'%odir)
     pwd = os.getcwd()
 
@@ -169,7 +171,7 @@ def getPlots(args):
             vals_s = cut.split(":")[1].split("-")
             vars_cut[label] = [float(i) for i in vals_s]
     try:
-        #print(hists_unmapped)
+        print(hists_unmapped)
         h = hists_unmapped[hist_name]
     except:
         h = hists_unmapped
