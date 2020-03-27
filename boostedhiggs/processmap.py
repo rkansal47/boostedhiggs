@@ -41,7 +41,7 @@ process_map["qcd"] = [
     "QCD_HT1500to2000_TuneCP5_PSWeights_13TeV-madgraphMLM-pythia8",
     "QCD_HT700to1000_TuneCP5_PSWeights_13TeV-madgraphMLM-pythia8",
     "QCD_HT2000toInf_TuneCP5_PSWeights_13TeV-madgraphMLM-pythia8",
-    "QCD_HT50to100_TuneCP5_PSWeights_13TeV-madgraphMLM-pythia8",
+    #"QCD_HT50to100_TuneCP5_PSWeights_13TeV-madgraphMLM-pythia8",
 ]
 process_map["tt"] = [
     'TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8',
