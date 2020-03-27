@@ -46,7 +46,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Boosted HWW processor')
     parser.add_argument('--year', choices=['2016', '2017', '2018'], default='2017', help='Which data taking year to correct MC to.')
-    parser.add_argument('--trigger', choices=['muon','electron','had','muonall','electronall'], default='muon', help='trigger selection')
+    parser.add_argument('--trigger', choices=['muon','vvlmuon','electron','vvlelectron','had','muonall','electronall'], default='muon', help='trigger selection')
     parser.add_argument('--channel', choices=['muon','electron'], default='muon', help='channel')
     parser.add_argument('--regions', default='presel', help='regions')
     parser.add_argument('--fileset', default='../boostedhiggs/data/hwwfiles_2017.json', help='fileset')

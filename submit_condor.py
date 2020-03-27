@@ -10,7 +10,7 @@ def write_condor(exe='runjob.sh', arguments = [], files = [],nqueue=1):
     out += 'Should_Transfer_Files = YES\n'
     out += 'WhenToTransferOutput = ON_EXIT\n'
     out += 'Transfer_Input_Files = %s,%s\n'%(exe,','.join(files))
-    out += 'request_memory = 2.8GB\n'
+    out += 'request_memory = 3.3GB\n'
     out += 'Output = output/%s_$(Cluster)_$(Process).stdout\n'%job_name
     out += 'Error  = error/%s_$(Cluster)_$(Process).stderr\n'%job_name
     out += 'Log    = log/%s_$(Cluster)_$(Process).log\n'   %job_name
@@ -62,8 +62,8 @@ def main(args):
               'zqq': 10,
               'hwwlnu': 2, 
               #'gghwwlnu': 1,
-              'tt-had': 75,
-              'JetHT': 40,
+              'tt-had': 100,
+              #'JetHT': 40,
               #'SingleMuon': 40,
               #'SingleElectron': 40,
               'hww_private': 10,
@@ -86,7 +86,7 @@ def main(args):
             ds_torun.append([ds,mc_hww[process]])
 
     print('ds_torun ',ds_torun)
-    odir = 'hww_%s_trigger%s_channel%s_%s'%(args.year,args.trigger,args.channel,args.tag) 
+    odir = 'hww%s_trigger%s_channel%s_region%s_%s'%(args.year,args.trigger,args.channel,args.regions,args.tag) 
     os.system('mkdir -p /eos/uscms/store/user/cmantill/hww/%s/'%odir)                                                                                                     
     os.system('mkdir -p condor/')                                                                                                                                               
     os.system('mkdir -p condor/error')                                                                                                                                           
@@ -103,20 +103,21 @@ def main(args):
 
     for ds,nsplit in ds_torun:
         command='python %s --year %s --trigger %s --channel %s --regions %s --fileset %s --ds %s --nsplit %i --isplit ${1}'%(exePython,args.year,args.trigger,args.channel,args.regions,args.fileset,ds,nsplit)
-        write_bash('runjob_%s.sh'%ds.replace('/',''), command=command,files=files,odir=odir)
-        write_condor('runjob_%s.sh'%ds.replace('/',''),arguments = [], files =files,nqueue=nsplit)
+        write_bash('runjob%s_%s.sh'%(args.jobtag,ds.replace('/','')), command=command,files=files,odir=odir)
+        write_condor('runjob%s_%s.sh'%(args.jobtag,ds.replace('/','')),arguments = [], files =files,nqueue=nsplit)
         
     os.chdir(cwd)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Submit to condor')
     parser.add_argument('--year', choices=['2016', '2017', '2018'], default='2017', help='Which data taking year to correct MC to.')
-    parser.add_argument('--trigger', choices=['muon','electron','had','muonall','electronall'], default='muon', help='trigger selection')
+    parser.add_argument('--trigger', choices=['muon','vvlmuon','electron','vvlelectron','had','muonall','electronall'], default='muon', help='trigger selection')
     parser.add_argument('--channel', choices=['muon','electron'], default='muon', help='channel')
     parser.add_argument('--regions', default='presel', help='regions')
     parser.add_argument('--fileset', default='boostedhiggs/data/hwwfiles_2017.json', help='fileset')
     parser.add_argument('--ds', default='all', help ='choose a dataset or run on all')
     parser.add_argument('--tag', default='', help ='output tag')
+    parser.add_argument('--jobtag', default='', help ='job tag')
     args = parser.parse_args()
     
     main(args)
