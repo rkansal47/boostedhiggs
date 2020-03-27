@@ -61,15 +61,23 @@ process_map["vv"] = [
     'WZ_TuneCP5_13TeV-pythia8',
     'ZZ_TuneCP5_13TeV-pythia8',
 ]
-process_map["h125"] = [
-    'hww_mc',
-    'hwwmc',
-]
+#process_map["h125"] = [
+#    'hww_mc',
+#    'hwwmc',
+#]
 process_map["hwwlnu"] = [
     'GluGluHToWWToLNuQQ_M125_TuneCP5_PSweight_13TeV-powheg2-jhugen727-pythia8',
 ]
 process_map["hww_private"] = [
-    'gghww',
+    'hww_2017mc_UL/Pancakes_v2',
+#    'gghww',
+]
+process_map["data_obs_jetht"] = [
+    'JetHT/pancakes-02_Run2017B-09Aug2019_UL2017-v1',
+    'JetHT/pancakes-02_Run2017C-09Aug2019_UL2017-v1',
+    'JetHT/pancakes-02_Run2017D-09Aug2019_UL2017-v1',
+    'JetHT/pancakes-02_Run2017E-09Aug2019_UL2017-v1',
+    'JetHT/pancakes-02_Run2017F-09Aug2019_UL2017-v1',
 ]
 
 def apply(h):
