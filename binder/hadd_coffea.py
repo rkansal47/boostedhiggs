@@ -25,7 +25,6 @@ def main(args):
     os.system('rm tmp_%s.txt'%idir) 
 
     flist = [ util.load('/eos/uscms/'+x) for x in lineList]
-    os.system('mkdir -p output_condor/%s/'%idir)
 
     if key!='':
         print('adding ',key)
@@ -34,6 +33,7 @@ def main(args):
         os.system('rm %s'%output)
         util.save(out,output)
     else:
+        os.system('mkdir -p output_condor/%s/'%idir)
         out = {}
         for key in flist[0]:
             print('adding ',key)
