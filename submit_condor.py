@@ -66,7 +66,7 @@ def main(args):
               #'JetHT': 40,
               #'SingleMuon': 40,
               #'SingleElectron': 40,
-              'hww_private': 10,
+              'hww_private': 30,
           }
 
     ds_torun = []
