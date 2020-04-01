@@ -77,7 +77,7 @@ class HwwProcessor(processor.ProcessorABC):
 
         dataset_axis = hist.Cat("dataset", "Primary dataset")
 
-        genflavor_axis = hist.Bin('genflavor', 'Gen. jet flavor', [0, 1, 2, 3, 4, 5, 6, 7, 8])
+        genflavor_axis = hist.Bin('genflavor', 'Gen. jet flavor', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
         fjetpt_axis = hist.Bin("fjet_pt", r"Cand Jet $p_T$", 20, 300, 1000)
         fjetlsf3_axis = hist.Bin("fjet_lsf3", r"Cand Jet LSF$_3$", 20, 0, 1)
@@ -128,42 +128,49 @@ class HwwProcessor(processor.ProcessorABC):
         hists['cutflow'] = processor.defaultdict_accumulator(float)
         self._regions = regions.split(',')
         for region in self._regions:
-            hists['%s_fjetprop'%region] = hist.Hist("Events / GeV",
-                                                    dataset_axis,
-                                                    fjetpt_axis,
-                                                    fjetmsd_axis,
-                                                    fjetlsf3_axis,
-                                                    jetoppbtag_axis,
-                                                    genflavor_axis,
-                                                )
-            hists['%s_fjetextraprop'%region] =  hist.Hist("Events / GeV",
-                                                          dataset_axis,
-                                                          fjett41_axis,
-                                                          fjett42_axis,
-                                                          fjett31_axis,
-                                                      )
-            #hists['%s_jetprop'%region] = hist.Hist("Events / GeV",
-            #                                       dataset_axis,
-            #                                       jetoppbtag_axis,
+            # hists['%s_fjetprop'%region] = hist.Hist("Events / GeV",
+            #                                         dataset_axis,
+            #                                         #fjetpt_axis,
+            #                                         fjetmsd_axis,
+            #                                         fjetlsf3_axis,
+            #                                         #jetoppbtag_axis,
+            #                                         #genflavor_axis,
+            #                                     )
+            # hists['%s_fjetextraprop'%region] =  hist.Hist("Events / GeV",
+            #                                               dataset_axis,
+            #                                               fjett41_axis,
+            #                                               fjett42_axis,
+            #                                               fjett31_axis,
+            #                                           )
+            # hists['%s_jetprop'%region] = hist.Hist("Events / GeV",
+            #                                        dataset_axis,
+            #                                        jetoppbtag_axis,
+            #                                        #genflavor_axis,
             #                                   )
             hists['%s_fmmjetprop'%region] = hist.Hist("Events / GeV",
                                                       dataset_axis,
-                                                      fjetmmass_axis,
-                                                      fjethmass_axis,
+                                                      #fjetmmass_axis,
+                                                      #fjethmass_axis,
+                                                      fjetlsf3_axis,
                                                       fjetpt_axis,
                                                       leppt_axis,
                                                       genflavor_axis,
                                                   )
-            hists['%s_flsjetprop'%region] = hist.Hist("Events / GeV",
-                                                      dataset_axis,
-                                                      #flsjetpt_axis,
-                                                      flsjetmsd_axis,
-                                                      #flsjetn2b1_axis,
-                                                      #flsjetn3b1_axis,
-                                                      #flsjett21_axis,
-                                                      #flsjett32_axis
-                                                      genflavor_axis,
-                                                  )
+            hists['%s_fmmjetprop2'%region] = hist.Hist("Events / GeV",
+                                                       dataset_axis,
+                                                       fjetmmass_axis,                                                                                                           
+                                                       fjetlsf3_axis,
+                                                       genflavor_axis)
+            # hists['%s_flsjetprop'%region] = hist.Hist("Events / GeV",
+            #                                           dataset_axis,
+            #                                           #flsjetpt_axis,
+            #                                           flsjetmsd_axis,
+            #                                           #flsjetn2b1_axis,
+            #                                           #flsjetn3b1_axis,
+            #                                           #flsjett21_axis,
+            #                                           #flsjett32_axis
+            #                                           genflavor_axis,
+            #                                       )
             #hists['%s_metprop'%region] = hist.Hist("Events / GeV",
             #                                       dataset_axis,
             #                                       metpt_axis,
@@ -172,30 +179,30 @@ class HwwProcessor(processor.ProcessorABC):
             #                                      dataset_axis,
             #                                      genweight_axis,
             #                                      puweight_axis)
-            if self._channel=='muon':
-                hists['%s_muonprop'%region] = hist.Hist("Events / GeV",
-                                                        dataset_axis,
-                                                        muonpt_axis,
-                                                        muonsip_axis,
-                                                        muonmiso_axis)
-                hists['%s_muonextraprop'%region] = hist.Hist("Events / GeV",
-                                                             dataset_axis,
-                                                             nmuons_axis,
-                                                             nelectrons_axis,
-                                                             muondz_axis,
-                                                             muondxy_axis)
-            else:
-                hists['%s_electronprop'%region] = hist.Hist("Events / GeV",
-                                                            dataset_axis,
-                                                            electronpt_axis,
-                                                            electronsip_axis,
-                                                            electronmiso_axis)
-                hists['%s_electronextraprop'%region] = hist.Hist("Events / GeV",
-                                                                 dataset_axis,
-                                                                 nmuons_axis,
-                                                                 nelectrons_axis,
-                                                                 electrondz_axis,
-                                                                 electrondxy_axis)
+            # if self._channel=='muon':
+            #     hists['%s_muonprop'%region] = hist.Hist("Events / GeV",
+            #                                             dataset_axis,
+            #                                             muonpt_axis,
+            #                                             muonsip_axis,
+            #                                             muonmiso_axis)
+            #     hists['%s_muonextraprop'%region] = hist.Hist("Events / GeV",
+            #                                                  dataset_axis,
+            #                                                  nmuons_axis,
+            #                                                  nelectrons_axis,
+            #                                                  muondz_axis,
+            #                                                  muondxy_axis)
+            # else:
+            #     hists['%s_electronprop'%region] = hist.Hist("Events / GeV",
+            #                                                 dataset_axis,
+            #                                                 electronpt_axis,
+            #                                                 electronsip_axis,
+            #                                                 electronmiso_axis)
+            #     hists['%s_electronextraprop'%region] = hist.Hist("Events / GeV",
+            #                                                      dataset_axis,
+            #                                                      nmuons_axis,
+            #                                                      nelectrons_axis,
+            #                                                      electrondz_axis,
+            #                                                      electrondxy_axis)
 
 
         self._accumulator = hists
@@ -291,6 +298,7 @@ class HwwProcessor(processor.ProcessorABC):
         selection.add('jetmsd', (candidatejet.msdcorr > 20).any())
         selection.add('LSF3medium', (candidatejet.lsf3 > 0.7).any())
         selection.add('LSF3tight', (candidatejet.lsf3 > 0.78).any())
+        selection.add('lepnearjet', (ak8_lep_dR.min() < 1.5))
         selection.add('lepinjet', (ak8_lep_dR.min() < 0.8))
 
         # FatJet substracted Lepton
@@ -343,20 +351,36 @@ class HwwProcessor(processor.ProcessorABC):
             try:
                 weights.add('genweight', events.genWeight)
                 add_pileup_weight(weights, events.Pileup.nPU, self._year)
-                logger.debug("Weight statistics: %r" % weights._weightStats)
+                #print("Weight statistics: %r" % weights._weightStats)
             except:
                 print('no gen weight')
             if 'TTTo' in dataset:
                 genW,genW_idx = getParticles(events,24,['fromHardProcess', 'isLastCopy'])
                 genb,genb_idx = getParticles(events,5,['fromHardProcess', 'isLastCopy'])
-                genflavorW = matchedParticleFlavor(candidatelep, genW,'child', 0.2)
-                genflavorb = matchedParticleFlavor(candidatelep, genb,'mom', 0.2)
+                genflavorW = matchedParticleFlavor(candidatelep, genW,'child', 0.4)
+                genflavorb = matchedParticleFlavor(candidatelep, genb,'mom', 0.4)
                 genflavor = getFlavor(genflavorW,genflavorb)
+            elif( ('hww_2017' in dataset) or ('GluGluHToWW' in dataset)):
+                genH,genH_idx = getParticles(events,25,['fromHardProcess', 'isLastCopy'])
+                genW,genW_idx = getParticles(events,24,['fromHardProcess', 'isLastCopy'])
+                genE,genE_idx = getParticles(events,11,['fromHardProcess','isFirstCopy'],1)
+                genM,genM_idx = getParticles(events,13,['fromHardProcess','isFirstCopy'],1)
+                genT,genT_idx = getParticles(events,15,['fromHardProcess','isFirstCopy'],1)
+                genQ,genQ_idx = getParticles(events,[0,5],['fromHardProcess','isFirstCopy'])
+                ishWW_qqelev = (genH.counts==1) & (genW.counts==2) & (genE.counts==1) & (genM.counts==0) & (genT.counts==0)
+                ishWW_qqmuv = (genH.counts==1) & (genW.counts==2) & (genM.counts==1) & (genE.counts==0) & (genT.counts==0)
+                ishWW_qqtauv = (genH.counts==1) & (genW.counts==2) & (genT.counts==1) & (genM.counts==0) & (genE.counts==0)
+                ishWW_qqqq = (genH.counts==1) & (genW.counts==2) & (genQ.counts==4)  & (genM.counts==0) & (genE.counts==0)
+                ishWW_muvelev = (genH.counts==1) & (genW.counts==2) & (genE.counts==1) & (genM.counts==1)
+                ishWW_elevelev = (genH.counts==1) & (genW.counts==2) & (genE.counts==2) & (genM.counts==0)
+                ishWW_tauvtauv = (genH.counts==1) & (genW.counts==2) & (genT.counts==2) & (genM.counts==0) & (genE.counts==0)
+                ishWW_muvmuv = (genH.counts==1) & (genW.counts==2) & (genE.counts==0) & (genM.counts==2)
+                genflavor = ((ishWW_qqelev) * 8 + (ishWW_qqmuv) * 9)
             else:
                 genflavor = candidatejet.pt.zeros_like()
 
         # fill cutflow
-        cutflow = ['trigger', 'jetkin', 'jetmsd', 'lepinjet', 'LSF3medium', 'LSF3tight','antiak4btagMediumOppHem','nootherlepton','iplepton']
+        cutflow = ['trigger', 'jetkin', 'jetmsd', 'lepnearjet', 'lepinjet','antiak4btagMediumOppHem','nootherlepton','iplepton','LSF3medium', 'LSF3tight']
         allcuts = set()
         output['cutflow']['none'] += len(events)
         for cut in cutflow:
@@ -365,7 +389,9 @@ class HwwProcessor(processor.ProcessorABC):
 
         regions = {}
         regions['presel'] = {'trigger','jetkin', 'jetmsd',  'lepinjet'}
-        regions['nolsf'] = {'trigger','jetkin', 'jetmsd',  'lepinjet', 'antiak4btagMediumOppHem','nootherlepton'}
+        regions['antibtag'] = {'trigger','jetkin', 'jetmsd', 'antiak4btagMediumOppHem'}
+        regions['noinjet'] = {'trigger','jetkin', 'jetmsd',  'lepnearjet', 'antiak4btagMediumOppHem'}
+        regions['nolsf'] = {'trigger','jetkin', 'jetmsd',  'lepinjet', 'antiak4btagMediumOppHem'} #,'nootherlepton'}
         regions['lsf'] = {'trigger','jetkin', 'jetmsd',  'lepinjet', 'LSF3tight'}
         regions['bopp'] =  {'trigger','jetkin', 'jetmsd',  'lepinjet', 'LSF3tight','antiak4btagMediumOppHem'}
         regions['lep'] = {'trigger','jetkin', 'jetmsd',  'lepinjet', 'LSF3tight','antiak4btagMediumOppHem','nootherlepton','iplepton'}
@@ -384,40 +410,47 @@ class HwwProcessor(processor.ProcessorABC):
                     except:
                         return val[cut]
 
-            output['%s_fjetprop'%region].fill(fjet_pt = normalize(candidatejet.pt),
-                                              fjet_msd = normalize(candidatejet.msdcorr),
-                                              fjet_lsf3 = normalize(candidatejet.lsf3),
-                                              jet_oppbtag = normalize(ak4_opposite.btagDeepB.max()),
-                                              genflavor = normalize(genflavor),
-                                              dataset=dataset,
-                                              weight=weight
-            )
-            output['%s_fjetextraprop'%region].fill(fjet_t41 = normalize(candidatejet.tau4/candidatejet.tau1),
-                                                   fjet_t42 = normalize(candidatejet.tau4/candidatejet.tau2),
-                                                   fjet_t31 = normalize(candidatejet.tau3/candidatejet.tau1),
-                                                   dataset=dataset,
-                                                   weight=weight
-                                               )
-            #output['%s_jetprop'%region].fill(jet_oppbtag = normalize(ak4_opposite.btagDeepB.max()),
-            #                                 dataset=dataset,
-            #                                 weight=weight
+            # output['%s_fjetprop'%region].fill(#fjet_pt = normalize(candidatejet.pt),
+            #                                   fjet_msd = normalize(candidatejet.msdcorr),
+            #                                   fjet_lsf3 = normalize(candidatejet.lsf3),
+            #                                   #jet_oppbtag = normalize(ak4_opposite.btagDeepB.max()),
+            #                                   genflavor = normalize(genflavor),
+            #                                   dataset=dataset,
+            #                                   weight=weight
+            # )
+            # output['%s_fjetextraprop'%region].fill(fjet_t41 = normalize(candidatejet.tau4/candidatejet.tau1),
+            #                                        fjet_t42 = normalize(candidatejet.tau4/candidatejet.tau2),
+            #                                        fjet_t31 = normalize(candidatejet.tau3/candidatejet.tau1),
+            #                                        dataset=dataset,
+            #                                        weight=weight
+            #                                    )
+            # output['%s_jetprop'%region].fill(jet_oppbtag = normalize(ak4_opposite.btagDeepB.max()),
+            #                                  genflavor = normalize(genflavor),
+            #                                  dataset=dataset,
+            #                                  weight=weight
             #                                 )
-            output['%s_fmmjetprop'%region].fill(fjet_mmass = normalize(jmass),
-                                                fjet_hmass = normalize(hmass),
-                                                fjet_pt = normalize(candidatejet.pt),
+            output['%s_fmmjetprop'%region].fill(fjet_pt = normalize(candidatejet.pt),
+                                                #fjet_mmass = normalize(jmass),
+                                                #fjet_hmass = normalize(hmass),
                                                 lep_pt = normalize(candidatelep.pt),
+                                                fjet_lsf3 = normalize(candidatejet.lsf3),
                                                 genflavor = normalize(genflavor),
                                                 dataset=dataset,
                                                 weight=weight)
-            output['%s_flsjetprop'%region].fill(#flsjet_pt = normalize(candidatejet.LSpt),
-                                                flsjet_msd = normalize(candidatejet.LSmsoftdrop),
-                                                #flsjet_n2b1 = normalize(candidatejet.LSn2b1),
-                                                #flsjet_n3b1 = normalize(candidatejet.LSn3b1),
-                                                #flsjet_t21 = normalize(candidatejet.LStau2/candidatejet.LStau1),
-                                                #flsjet_t32 = normalize(candidatejet.LStau3/candidatejet.LStau2),
-                                                genflavor = normalize(genflavor),
-                                                dataset=dataset,
-                                                weight=weight)
+            output['%s_fmmjetprop2'%region].fill(fjet_mmass = normalize(jmass),
+                                                 fjet_lsf3 = normalize(candidatejet.lsf3),
+                                                 genflavor = normalize(genflavor),
+                                                 dataset=dataset,
+                                                 weight=weight)
+            # output['%s_flsjetprop'%region].fill(#flsjet_pt = normalize(candidatejet.LSpt),
+            #                                     flsjet_msd = normalize(candidatejet.LSmsoftdrop),
+            #                                     #flsjet_n2b1 = normalize(candidatejet.LSn2b1),
+            #                                     #flsjet_n3b1 = normalize(candidatejet.LSn3b1),
+            #                                     #flsjet_t21 = normalize(candidatejet.LStau2/candidatejet.LStau1),
+            #                                     #flsjet_t32 = normalize(candidatejet.LStau3/candidatejet.LStau2),
+            #                                     genflavor = normalize(genflavor),
+            #                                     dataset=dataset,
+            #                                     weight=weight)
             #output['%s_metprop'%region].fill(met_pt = normalize(met.pt),
             #                                 met_phi = normalize(met.phi),
             #                                 dataset=dataset,
@@ -426,31 +459,31 @@ class HwwProcessor(processor.ProcessorABC):
             #                                 genweight=weights.partial_weight(include=["genweight"])[cut],
             #                                 dataset=dataset,
             #                                 )
-            if self._channel=='muon':
-                output['%s_muonprop'%region].fill(muon_pt = normalize(candidatemuon.pt),
-                                                  muon_miso = normalize(candidatemuon.miniPFRelIso_all),
-                                                  muon_sip = normalize(candidatemuon.sip3d),
-                                                  dataset=dataset,
-                                                  weight=weight)
-                output['%s_muonextraprop'%region].fill(nmuons = normalize(nmuons),
-                                                       nelectrons = normalize(nelectrons),
-                                                       muon_dz = normalize(candidatemuon.dz),
-                                                       muon_dxy = normalize(candidatemuon.dxy),
-                                                       dataset=dataset,
-                                                       weight=weight)
+            # if self._channel=='muon':
+            #     output['%s_muonprop'%region].fill(muon_pt = normalize(candidatemuon.pt),
+            #                                       muon_miso = normalize(candidatemuon.miniPFRelIso_all),
+            #                                       muon_sip = normalize(candidatemuon.sip3d),
+            #                                       dataset=dataset,
+            #                                       weight=weight)
+            #     output['%s_muonextraprop'%region].fill(nmuons = normalize(nmuons),
+            #                                            nelectrons = normalize(nelectrons),
+            #                                            muon_dz = normalize(candidatemuon.dz),
+            #                                            muon_dxy = normalize(candidatemuon.dxy),
+            #                                            dataset=dataset,
+            #                                            weight=weight)
 
-            else:
-                output['%s_electronprop'%region].fill(electron_pt = normalize(candidateelectron.pt),
-                                                      electron_miso = normalize(candidateelectron.miniPFRelIso_all),
-                                                      electron_sip = normalize(candidateelectron.sip3d),
-                                                      dataset=dataset,
-                                                      weight=weight)
-                output['%s_electronextraprop'%region].fill(nmuons = normalize(nmuons),
-                                                           nelectrons = normalize(nelectrons),
-                                                           electron_dz = normalize(candidateelectron.dz),
-                                                           electron_dxy = normalize(candidateelectron.dxy),
-                                                           dataset=dataset,
-                                                           weight=weight)
+            # else:
+            #     output['%s_electronprop'%region].fill(electron_pt = normalize(candidateelectron.pt),
+            #                                           electron_miso = normalize(candidateelectron.miniPFRelIso_all),
+            #                                           electron_sip = normalize(candidateelectron.sip3d),
+            #                                           dataset=dataset,
+            #                                           weight=weight)
+            #     output['%s_electronextraprop'%region].fill(nmuons = normalize(nmuons),
+            #                                                nelectrons = normalize(nelectrons),
+            #                                                electron_dz = normalize(candidateelectron.dz),
+            #                                                electron_dxy = normalize(candidateelectron.dxy),
+            #                                                dataset=dataset,
+            #                                                weight=weight)
 
         return output
 
