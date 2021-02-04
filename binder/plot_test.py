@@ -342,6 +342,12 @@ for var in disc_vars:
         vals[var][jk]['bg'] = np.sum(np.array(vals[var][jk]['bg']), axis=0)
         vals[var][jk]['tpr'] = np.cumsum(vals[var][jk]['sig'][::-1])[::-1] / np.sum(np.array(vals[var][jk]['sig']))
         vals[var][jk]['fpr'] = np.cumsum(vals[var][jk]['bg'][::-1])[::-1] / np.sum(np.array(vals[var][jk]['bg']))
+        vals[var][jk]['tpr'] = np.append(vals[var][jk]['tpr'], 0)
+        vals[var][jk]['fpr'] = np.append(vals[var][jk]['fpr'], 0)
+
+vals[var]['jet2']['fpr']
+
+vals[var][jk]['fpr']
 
 
 fig, axs = plt.subplots(len(disc_vars), 3, figsize=(28, len(disc_vars) * 9))
@@ -366,9 +372,9 @@ fig, axs = plt.subplots(1, len(disc_vars), figsize=(len(disc_vars) * 9, 9))
 for i in range(len(disc_vars)):
     var = disc_vars[i]
     for j in range(3):
-        jk = 'jet' + str(i + 1)
+        jk = 'jet' + str(j + 1)
         auc = np.sum(vals[var][jk]['tpr']) / 100
-        axs[i].plot(vals[var][jk]['fpr'], vals[var][jk]['tpr'], label='Fat Jet {} AUC = {}'.format(j, auc))
+        axs[i].plot(vals[var][jk]['fpr'], vals[var][jk]['tpr'], label='Fat Jet {} AUC = {:.2f}'.format(j, auc))
 
     axs[i].set_title(var)
     axs[i].set_xlabel('FPR')
@@ -378,6 +384,22 @@ for i in range(len(disc_vars)):
 plt.tight_layout(0.5)
 plt.ticklabel_format(axis='x', scilimits=(0, 0), useMathText=True, style='sci')
 plt.savefig("figs/jet_disc_vars_roc2.pdf", bbox_inches='tight')
+plt.show()
+
+
+jk = 'jet1'
+for i in range(len(disc_vars)):
+    var = disc_vars[i]
+    auc = np.sum(vals[var][jk]['tpr']) / 100
+    plt.plot(vals[var][jk]['fpr'], vals[var][jk]['tpr'], label='{} AUC = {:.2f}'.format(var, auc))
+
+plt.title('ROC Curves')
+plt.xlabel('FPR')
+plt.ylabel('TPR')
+plt.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+
+plt.tight_layout(0.5)
+plt.savefig("figs/jet_disc_vars_roc3.pdf", bbox_inches='tight')
 plt.show()
 
 
