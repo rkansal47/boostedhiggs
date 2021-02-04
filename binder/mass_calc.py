@@ -5,7 +5,7 @@ import numpy as np
 import sys
 from os import listdir
 
-i = sys.argv[1]
+i = int(sys.argv[1])
 print(i)
 
 dir = '/graphganvol/data/'
