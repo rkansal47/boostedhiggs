@@ -15,7 +15,6 @@ for s, fname in samples.items():
     evtDict[s] = uproot.concatenate(fname + ":tree")
 
 for s, evts in evtDict.items():
-    print(s)
     jet12mass = []
     jet123mass = []
     for i in tqdm(range(len(evts["fatJet1Pt"]))):
@@ -27,9 +26,6 @@ for s, evts in evtDict.items():
         jet3.setptetaphim(evts["fatJet3Pt"][i], evts["fatJet3Eta"][i], evts["fatJet3Phi"][i], evts["fatJet3Mass"][i])
 
         jet12mass.append((jet1 + jet2).mass)
-        print((jet1 + jet2).mass)
-
         jet123mass.append((jet1 + jet2 + jet3).mass)
-        print((jet1 + jet2 + jet3).mass)
-
+        
     np.save('/graphganvol/data/' + s + '_inv_mass.npy', np.array([jet12mass, jet123mass]))

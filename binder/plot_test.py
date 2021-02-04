@@ -361,21 +361,23 @@ plt.savefig("figs/jet_disc_vars_roc.pdf", bbox_inches='tight')
 plt.show()
 
 
-fig, axs = plt.subplots(1, len(disc_vars), figsize=(len(disc_vars) * 9), 9)
+fig, axs = plt.subplots(1, len(disc_vars), figsize=(len(disc_vars) * 9, 9))
 
 for i in range(len(disc_vars)):
     var = disc_vars[i]
     for j in range(3):
         jk = 'jet' + str(i + 1)
-        axs[i].plot(vals[var][jk]['fpr'], vals[var][jk]['tpr'])
+        auc = np.sum(vals[var][jk]['tpr']) / 100
+        axs[i].plot(vals[var][jk]['fpr'], vals[var][jk]['tpr'], label='Fat Jet {} AUC = {}'.format(j, auc))
 
     axs[i].set_title(var)
-    axs[i, j].set_xlabel('FPR')
-    axs[i, j].set_ylabel('TPR')
+    axs[i].set_xlabel('FPR')
+    axs[i].set_ylabel('TPR')
+    axs[i].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
 
 plt.tight_layout(0.5)
 plt.ticklabel_format(axis='x', scilimits=(0, 0), useMathText=True, style='sci')
-plt.savefig("figs/jet_disc_vars_roc.pdf", bbox_inches='tight')
+plt.savefig("figs/jet_disc_vars_roc2.pdf", bbox_inches='tight')
 plt.show()
 
 
