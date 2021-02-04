@@ -1,13 +1,7 @@
-import uproot4
+import uproot
 from skhep.math.vectors import LorentzVector
 from tqdm import tqdm
 import numpy as np
-
-
-def getData(fnames=''):
-    evts = uproot4.concatenate(fnames + ":tree")
-    return evts
-
 
 samples = {
     "HH4V": "/graphganvol/data/weighted/HHToVVVV_node_SM_Pt300_1pb_weighted.root",
@@ -18,7 +12,7 @@ samples = {
 
 evtDict = {}
 for s, fname in samples.items():
-    evtDict[s] = uproot4.concatenate(fname + ":tree")
+    evtDict[s] = uproot.concatenate(fname + ":tree")
 
 for s, evts in evtDict.items():
     print(s)

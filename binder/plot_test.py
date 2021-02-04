@@ -324,6 +324,111 @@ plt.ticklabel_format(axis='x', scilimits=(0, 0), useMathText=True, style='sci')
 plt.savefig("figs/jet_disc_vars_weighted.pdf", bbox_inches='tight')
 plt.show()
 
+vals = {}
+
+for var in disc_vars:
+    vals[var] = {}
+    for i in range(3):
+        jk = 'jet' + str(i + 1)
+        vals[var][jk] = {'sig': [], 'bg': []}
+        for s in evtDict.keys():
+            if s != 'HH4V':
+                if 'HH' in s:
+                    vals[var][jk]['sig'].append(hists['jet' + var].project("sample", jk).values()[(s, )])
+                else:
+                    vals[var][jk]['bg'].append(hists['jet' + var].project("sample", jk).values()[(s, )])
+
+        vals[var][jk]['sig'] = np.sum(np.array(vals[var][jk]['sig']), axis=0)
+        vals[var][jk]['bg'] = np.sum(np.array(vals[var][jk]['bg']), axis=0)
+        vals[var][jk]['tpr'] = np.cumsum(vals[var][jk]['sig'][::-1])[::-1] / np.sum(np.array(vals[var][jk]['sig']))
+        vals[var][jk]['fpr'] = np.cumsum(vals[var][jk]['bg'][::-1])[::-1] / np.sum(np.array(vals[var][jk]['bg']))
+
+
+fig, axs = plt.subplots(len(disc_vars), 3, figsize=(28, len(disc_vars) * 9))
+
+for i in range(len(disc_vars)):
+    var = disc_vars[i]
+    for j in range(3):
+        jk = 'jet' + str(i + 1)
+        axs[i, j].plot(vals[var][jk]['fpr'], vals[var][jk]['tpr'])
+        axs[i, j].set_title('Fat Jet {} {}'.format(j + 1, var))
+        axs[i, j].set_xlabel('FPR')
+        axs[i, j].set_ylabel('TPR')
+
+plt.tight_layout(0.5)
+plt.ticklabel_format(axis='x', scilimits=(0, 0), useMathText=True, style='sci')
+plt.savefig("figs/jet_disc_vars_roc.pdf", bbox_inches='tight')
+plt.show()
+
+
+fig, axs = plt.subplots(1, len(disc_vars), figsize=(len(disc_vars) * 9), 9)
+
+for i in range(len(disc_vars)):
+    var = disc_vars[i]
+    for j in range(3):
+        jk = 'jet' + str(i + 1)
+        axs[i].plot(vals[var][jk]['fpr'], vals[var][jk]['tpr'])
+
+    axs[i].set_title(var)
+    axs[i, j].set_xlabel('FPR')
+    axs[i, j].set_ylabel('TPR')
+
+plt.tight_layout(0.5)
+plt.ticklabel_format(axis='x', scilimits=(0, 0), useMathText=True, style='sci')
+plt.savefig("figs/jet_disc_vars_roc.pdf", bbox_inches='tight')
+plt.show()
+
+
+vals[var][jk]['tpr']
+
+
+vals[var][jk]['fpr']
+
+ np.cumsum(vals[var][jk]['sig'][::-1])[::-1]
+
+np.sum(vals[var][jk]['sig'])
+
+len(vals[var][jk]['sig'])
+
+roc_vals = {}
+
+for var in disc_vars:
+    roc_vals[var] = {}
+    for i in range(3):
+        jk = 'jet' + str(i + 1)
+        roc_vals[var][jk] = {'tpr': [], 'fpr': []}
+        cumsum = np.cumsum(vals[var][jk]['sig'])
+        tot = np.sum(vals[var][jk]['sig'])
+
+        roc_vals[var][jk]['tpr'] = cumsum / tot
+
+        cumsum = np.cumsum(vals[var][jk]['bg'])
+        cumsumr = vals[var][jk]['bg'][::-1].cumsum()[::-1]
+
+        for j in range(len(vals[var][jk]['sig'])):
+
+            vals[var][jk]['tpr'].append(vals[var][jk]['sig'] / (vals[var][jk]['sig'] + np.sum(vals[var][jk]['sig'][j]))
+
+        vals[var][jk]['tpr'] = vals[var][jk]['sig'] / (vals[var][jk]['sig'] + vals[var][jk]['bg'])
+
+            vals[var][jk]['sig'].append(hists['jet' + var].project("sample", jk).values()[(s, )])
+        else:
+            vals[var][jk]['bg'].append(hists['jet' + var].project("sample", jk).values()[(s, )])
+
+        vals[var][jk]['sig'] = np.sum(np.array(vals[var][jk]['sig']), axis=0)
+        vals[var][jk]['bg'] = np.sum(np.array(vals[var][jk]['bg']), axis=0)
+
+
+
+
+np.sum(np.array(vals[disc_vars[0]]['jet3']['sig']), axis=0)
+
+
+vals = hists['jetDeepAK8_H'].project("sample", "jet1").values()
+vals
+
+
+
 
 jet12mass = {}
 jet123mass = {}
