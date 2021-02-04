@@ -5,14 +5,14 @@ import numpy as np
 import sys
 from os import listdir
 
-i = int(sys.argv[1])
-print(i)
+j = int(sys.argv[1])
+print(j)
 
 dir = '/graphganvol/data/'
 
 fnames = listdir(dir + 'weighted/')
 
-evts = uproot.concatenate(dir + 'weighted/' + fnames[i] + ":tree")
+evts = uproot.concatenate(dir + 'weighted/' + fnames[j] + ":tree")
 
 jet12mass = []
 jet123mass = []
@@ -27,4 +27,4 @@ for i in tqdm(range(len(evts["fatJet1Pt"]))):
     jet12mass.append((jet1 + jet2).mass)
     jet123mass.append((jet1 + jet2 + jet3).mass)
 
-np.save(dir + fnames[i] + '_inv_mass.npy', np.array([jet12mass, jet123mass]))
+np.save(dir + fnames[j] + '_inv_mass.npy', np.array([jet12mass, jet123mass]))
