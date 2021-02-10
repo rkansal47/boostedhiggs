@@ -8,11 +8,14 @@ from os import listdir
 j = int(sys.argv[1])
 print(j)
 
-dir = '/graphganvol/data/'
+j = 5
+
+# dir = '/graphganvol/data/'
+dir = 'data/'
 
 fnames = listdir(dir + 'weighted/')
 
-evts = uproot.concatenate(dir + 'weighted/' + fnames[j] + ":tree")
+evts = uproot4.concatenate(dir + 'weighted/' + fnames[j] + ":tree")
 
 jet12mass = []
 jet123mass = []
