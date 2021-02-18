@@ -1052,8 +1052,6 @@ ak_dict
 hh4b_events_bb_sorted = ak.zip(ak_dict)
 hh4b_events_bb_sorted
 
-RUN2
-
 hh4b_kin_var_cuts = {
     "fatJet1Pt": [310, 9999],
     "fatJet2Pt": [310, 9999],
@@ -1157,9 +1155,6 @@ hh4bcf[s].append(np.sum(hh4b_events_bb_sorted[cut].weight))
 events_hh4b_cuts[s] = hh4b_events_bb_sorted[cut]
 
 
-hh4bcf
-
-
 cut_labels = ['Jet1 pT > 310',
                 'Jet2 pT > 310',
                 'At least 1 jet pT > 350',
@@ -1177,9 +1172,6 @@ np.round(np.array(list(hh4bcf.values()))[:, cut_idx], 1)
 cftable = pandas.DataFrame(np.round(np.array(list(hh4bcf.values()))[:, cut_idx], 1), list(hh4bcf.keys()), cut_labels)
 cftable
 cftable.to_csv('hh4b_cutflow.csv')
-
-
-print()
 
 
 np.sum(events_hh4b_cuts['hh4b']['weight'])
