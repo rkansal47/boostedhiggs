@@ -166,7 +166,7 @@ weights = {}
 weights["HH4V"] = None
 weights["QCD"] = evtDict["QCD"]["weight"] * RUN2LUMI
 weights["tt"] = evtDict["tt"]["weight"] * RUN2LUMI
-weights["HHbbWW4q"] = evtDict["HHbbWW4q"]["totalWeight"] * RUN2LUMI * XSECHHBBWWQQ * ACCEPTANCE / len(evtDict["HHbbWW4q"]["weight"])
+weights["HHbbWW4q"] = evtDict["HHbbWW4q"]["totalWeight"] * RUN2LUMI * XSECHHBBWWQQ * ACCEPTANCE
 
 evtDict["HHbbWW4q"]["weight"]
 evtDict["HHbbWW4q"]["totalWeight"]
@@ -661,7 +661,10 @@ vals = hists['fatJetPt'].project("sample", "jet1").values()
 for s in evtDict.keys():
     tot_events[s] = np.sum(vals[(s,)])
 
+
 tot_events
+
+tot_events['HHbbWW4q'] / 0.173
 
 scale_factor = {'HH4V': 1 / tot_events['HH4V'],
         'HHbbWW4q': 1 / tot_events['HHbbWW4q'],
