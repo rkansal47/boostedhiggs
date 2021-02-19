@@ -23,11 +23,6 @@ ak.behavior.update(vector.behavior)
 plt.style.use(hep.style.ROOT)
 
 
-hhbbwwevts = uproot4.open("./data/weighted/HHToBBVVToBBQQQQ_node_SM_1pb_weighted.root")["tree"]
-# evts = uproot4.open("./data/weighted/HHToVVVV_node_SM_Pt300_1pb_weighted.root")["tree"]
-hhbbwwevts.keys()
-
-
 
 samples = {
     "HH4V": "data/weighted/HHToVVVV_node_SM_Pt300_1pb_weighted.root",
@@ -40,7 +35,25 @@ evtDict = {}
 for s, fname in samples.items():
     evtDict[s] = uproot4.concatenate(fname + ":tree")
 
+hh4b_evts = uproot4.open('data/weighted/GluGluToHHTo4B_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8.root')
+hh4b_evts['NEvents'].to_numpy()
 
+data17 = uproot4.concatenate('data/weighted/JetHT*.root:tree')
+
+data17
+
+data17
+
+evtDict["HH4b"] = uproot4.concatenate('data/weighted/GluGluToHHTo4B_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8.root:tree')
+evtDict['HH4b'][0]
+
+ak.sum(evtDict["HH4b"]['weight'])
+evtDict["HH4b"]['fatJet1PNetXbb']
+evtDict["HH4b"]['fatJet2PNetXbb']
+
+evtDict["HH4b"]['fatJet2PNetXbb']
+
+plt.hist(evtDict["HH4b"]['fatJet2PNetXbb'], bins=np.linspace(0, 1, 101))
 
 evts2 = uproot4.open("data/hh4b/nano_1.root")
 
@@ -90,7 +103,7 @@ fjptgencut = hh4bfjpt[ak.sort(higgs_pt, axis=1)[:, -1] > 300]
 fjmsdgencut = hh4bfjmassd[ak.sort(higgs_pt, axis=1)[:, -1] > 300]
 
 ak.sum()
-ak.sum((fjptgencut[:, 0] > 250) * (fjptgencut[:, 1] > 250)  * (fjmsdgencut[:, 0] > 20) * (fjmsdgencut[:, 1] > 20))
+ak.sum((fjptgencut[:, 0] > 250) * (fjptgencut[:, 1] > 250) * (fjmsdgencut[:, 0] > 20) * (fjmsdgencut[:, 1] > 20))
 
 23452 / 94068
 
@@ -167,6 +180,7 @@ weights["HH4V"] = None
 weights["QCD"] = evtDict["QCD"]["weight"] * RUN2LUMI
 weights["tt"] = evtDict["tt"]["weight"] * RUN2LUMI
 weights["HHbbWW4q"] = evtDict["HHbbWW4q"]["totalWeight"] * RUN2LUMI * XSECHHBBWWQQ * ACCEPTANCE
+weights["HH4b"] = np.ones(len(evtDict["HH4b"])) * RUN2LUMI * XSECHHBBBB * ACCEPTANCE / len(evtDict["HH4b"])
 
 evtDict["HHbbWW4q"]["weight"]
 evtDict["HHbbWW4q"]["totalWeight"]
@@ -813,12 +827,15 @@ plt.savefig("figs/jets_inv_mass.pdf", bbox_inches='tight')
 
 
 
+
+
+
 events_bb_sorted = {}
 fatjet_vars = ["Pt", "MassSD", "DeepAK8MD_H4qvsQCD"]
 
 for s, evts in evtDict.items():
     if s != "HH4V":
-        pnet_key = "PNetXbb_alt" if "HH" in s else "PNetXbb"
+        pnet_key = "PNetXbb_alt" if s == "HHbbWW4q" else "PNetXbb"
         jet1_bb_leading = evts["fatJet1" + pnet_key] > evts["fatJet2" + pnet_key]
 
         ak_dict =   {
@@ -833,6 +850,10 @@ for s, evts in evtDict.items():
 
         events_bb_sorted[s] = ak.zip(ak_dict)
 
+
+events_bb_sorted
+
+plt.hist(events_bb_sorted['HH4b']['fatJet2PNetXbb'], np.linspace(0, 1, 101))
 
 events_bb_sorted['HHbbWW4q']['fatJet1PNetXbb']
 
@@ -1135,24 +1156,24 @@ for s, evts in events_bb_sorted.items():
     hh4bcf[s].append(np.sum(evts[cut].weight))
 
     events_hh4b_cuts[s] = evts[cut]
-
-s = 'hh4b'
-cuts = []
-for var, brange in hh4b_var_cuts.items():
-    cuts.append(hh4b_events_bb_sorted[var] > brange[0])
-    cuts.append(hh4b_events_bb_sorted[var] < brange[1])
-    if var == "fatJet2Pt":
-        cuts.append((hh4b_events_bb_sorted['fatJet1Pt'] > 350) + (hh4b_events_bb_sorted['fatJet2Pt'] > 350))
-
-cut = cuts[0]
-hh4bcf[s] = []
-for i in np.arange(1, len(cuts)):
-    hh4bcf[s].append(np.sum(hh4b_events_bb_sorted[cut].weight))
-    cut = cut * cuts[i]
-
-hh4bcf[s].append(np.sum(hh4b_events_bb_sorted[cut].weight))
-
-events_hh4b_cuts[s] = hh4b_events_bb_sorted[cut]
+#
+# s = 'hh4b'
+# cuts = []
+# for var, brange in hh4b_var_cuts.items():
+#     cuts.append(hh4b_events_bb_sorted[var] > brange[0])
+#     cuts.append(hh4b_events_bb_sorted[var] < brange[1])
+#     if var == "fatJet2Pt":
+#         cuts.append((hh4b_events_bb_sorted['fatJet1Pt'] > 350) + (hh4b_events_bb_sorted['fatJet2Pt'] > 350))
+#
+# cut = cuts[0]
+# hh4bcf[s] = []
+# for i in np.arange(1, len(cuts)):
+#     hh4bcf[s].append(np.sum(hh4b_events_bb_sorted[cut].weight))
+#     cut = cut * cuts[i]
+#
+# hh4bcf[s].append(np.sum(hh4b_events_bb_sorted[cut].weight))
+#
+# events_hh4b_cuts[s] = hh4b_events_bb_sorted[cut]
 
 
 cut_labels = ['Jet1 pT > 310',
@@ -1169,9 +1190,9 @@ cut_idx = [0, 2, 4, 5, 6, 7, 9]
 
 np.round(np.array(list(hh4bcf.values()))[:, cut_idx], 1)
 
-cftable = pandas.DataFrame(np.round(np.array(list(hh4bcf.values()))[:, cut_idx], 1), list(hh4bcf.keys()), cut_labels)
+cftable = pandas.DataFrame(np.round(np.array(list(hh4bcf.values()))[:, cut_idx], 2), list(hh4bcf.keys()), cut_labels)
 cftable
-cftable.to_csv('hh4b_cutflow.csv')
+cftable.to_csv('hh4b2_cutflow.csv')
 
 
 np.sum(events_hh4b_cuts['hh4b']['weight'])
