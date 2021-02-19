@@ -51,7 +51,7 @@ weights["HHbbWW4q"] = evtDict["HHbbWW4q"]["totalWeight"] * RUN2LUMI * XSECHHBBWW
 
 
 
-# fat jets by PNetXbb score
+# sorting fat jets by PNetXbb score
 # output is a dict of all events with fatJet1 and 2 referring to the Hbb and HWW candidates resp., and storing the pT, soft drop mass, and tagger scores of each
 
 events_bb_sorted = {}
