@@ -37,47 +37,257 @@ evtDict = {}
 for s, fname in samples.items():
     evtDict[s] = uproot4.concatenate(fname + ":tree")
 
-hh4b_samples = uproot4.open("data/weighted/GluGluToHHTo4B_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8_1pb_weighted.root")
-hh4b_samples["NEvents"].to_numpy()
-
-
-evtDict["HH4b"] = uproot4.concatenate("data/weighted/GluGluToHHTo4B_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8_1pb_weighted.root:tree")
-evtDict["HH4b"]['weight']
-
-evtDict["data"] = data17
-
-
-np.unique(ak.to_numpy(evtDict["HH4b"]['weight']))
-
-evtDict["HH4b"].fields
-evtDict["HH4b"]['fatJet1PNetXbb']
-
-hh4b_evts = uproot4.open('data/weighted/GluGluToHHTo4B_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8_1pb_weighted.root')
+evtDict["HH4V"] = uproot4.concatenate("data/weighted/HHToVVVV_node_SM_Pt300_1pb_weighted.root")
+evtDict["HHbbWW4q"] = uproot4.concatenate("data/weighted/HHToBBVVToBBQQQQ_node_SM_1pb_weighted.root")
 
 data17 = uproot4.concatenate('data/weighted/JetHT*.root:tree')
-data17
+evtDict["data"] = data17
 
-plt.hist(data17['fatJet1Pt'][-100000:], bins=np.linspace(0, 2000, 101))
+evtDict["data"].fields
 
 ak.sum((data17['fatJet1Pt'] > 250) * (data17['fatJet2Pt'] > 250) * (data17['fatJet1MassSD'] > 20) * (data17['fatJet2MassSD'] > 20))
 
-hh4b_samples = uproot4.concatenate("data/weighted/GluGluToHHTo4B_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8_1pb_weighted.root:tree")
-
 full_hh4b_samples = uproot4.concatenate("data/hh4b/nano_*.root:Events")
 
+evtDict["HHbbWW4q"].fields
+
+data17.fields
+
+
+evtDict["HH4V"].fields
+
+
+evtDict["HH4V"]['genHiggs1W2Decay']
+
+
+triggers = data17['HLT_PFJet500'] + \
+data17['HLT_AK8PFJet500'] + \
+data17['HLT_AK8PFJet360_TrimMass30'] + \
+data17['HLT_AK8PFJet380_TrimMass30'] + \
+data17['HLT_AK8PFJet400_TrimMass30'] + \
+data17['HLT_AK8PFHT800_TrimMass50'] + \
+data17['HLT_AK8PFJet330_PFAK8BTagCSV_p17']
+
+
+ak.sum(triggers)
 
 # DeltaR study
 
 evtDict["HHbbWW4q"].fields
 
+np.unique(ak.to_numpy(evtDict["HHbbWW4q"]['genHiggs1W1Decay']))
+
+ak.sum(evtDict["HHbbWW4q"]['genHiggs1W1Decay'] > 1)
+ak.sum(evtDict["HHbbWW4q"]['genHiggs2W1Decay'] > 1)
+ak.sum(evtDict["HHbbWW4q"]['genHiggs2W1Decay'] == 5)
+ak.sum(evtDict["HHbbWW4q"]['genHiggs1W1Decay'] == 5)
 
 
-evtDict["HHbbWW4q"]['genHiggs1W2dau1Pt']
+h1W = (evtDict["HHbbWW4q"]['genHiggs1W1Decay'] == 1) * (evtDict["HHbbWW4q"]['genHiggs1W2Decay'] == 1)
+h2W = (evtDict["HHbbWW4q"]['genHiggs2W1Decay'] == 1) * (evtDict["HHbbWW4q"]['genHiggs2W2Decay'] == 1)
+totW = ak.sum(h1W) + ak.sum(h2W)
+totW
+
+len(evtDict["HHbbWW4q"]['genHiggs1W1Decay'])
+
+weightsW = ak.flatten(ak.Array([weights["HHbbWW4q"][h1W], weights["HHbbWW4q"][h2W]]))
+
+
+ak.sum(h1W * (evtDict["HHbbWW4q"]['genHiggs1W2Decay'] != 1))
+ak.sum(~h1W * (evtDict["HHbbWW4q"]['genHiggs1W2Decay'] == 1))
+ak.sum(h2W * (evtDict["HHbbWW4q"]['genHiggs2W2Decay'] != 1))
+ak.sum(~h2W * (evtDict["HHbbWW4q"]['genHiggs2W2Decay'] == 1))
+
+
+key_dict = {'pt': 'Pt', 'eta': 'Eta', 'phi': 'Phi'}
+
+def get_vec(var, mass):
+    dict = {}
+    for key, val in key_dict.items():
+        dict[key] = ak.flatten(ak.Array([evtDict["HHbbWW4q"]['genHiggs1' + var + val][h1W], evtDict["HHbbWW4q"]['genHiggs2' + var + val][h2W]]))
+    dict['mass'] = np.ones(totW) * mass
+
+
+    return ak.zip(dict, with_name="PtEtaPhiMLorentzVector")
+
+
+hvec = get_vec('', 125.1)
+W1vec = get_vec('W1', 80.379)
+W2vec = get_vec('W2', 80.379)
+W1q1vec = get_vec('W1dau1', 0)
+W1q2vec = get_vec('W1dau2', 0)
+W2q1vec = get_vec('W2dau1', 0)
+W2q2vec = get_vec('W2dau2', 0)
+
+len(hvec)
+
+testr = 0.8
+
+ak.sum(hvec.delta_r(W1vec) < testr) / totW
+ak.sum(hvec.delta_r(W2vec) < testr) / totW
+ak.sum((hvec.delta_r(W1vec) < testr) * (hvec.delta_r(W2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak8_4q = (hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)
+
+
+testr = 1.5
+
+ak.sum(hvec.delta_r(W1vec) < testr) / totW
+ak.sum(hvec.delta_r(W2vec) < testr) / totW
+ak.sum((hvec.delta_r(W1vec) < testr) * (hvec.delta_r(W2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+ak15_4q = (hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)
+
+
+
+data_err_opts_c = {
+    'linestyle': 'none',
+    'marker': '.',
+    'markersize': 10.,
+    'color': 'k',
+    'elinewidth': 1,
+}
+
+
+hists['deltar'] = hist.Hist("Events",
+                             hist.Cat("sample", "Sample"),
+                             hist.Bin("h1", r"Higgs $p_T$ ", 51, 0, 1000),
+                             )
+
+str_all = 'Total HWW4q Events'
+str_8 = '0.8 $\Delta$R Captures All 4q'
+str_15 = '1.5 $\Delta$R Captures All 4q'
+
+hists['deltar'].fill(sample=str_all, h1=hvec.pt, weight=weightsW)
+hists['deltar'].fill(sample=str_8, h1=hvec.pt[ak8_4q], weight=weightsW[ak8_4q])
+hists['deltar'].fill(sample=str_15, h1=hvec.pt[ak15_4q], weight=weightsW[ak15_4q])
+# hists['genHiggsPt'].fill(sample='HH4b full', h1=higgs_pt[:, 0], weight=weights['fullHH4b'])
+
+
+
+fig, (axs, rax) = plt.subplots(2, 1, gridspec_kw={"height_ratios": (3, 1)}, sharex=True)
+hist.plot1d(hists['deltar'], line_opts=line_opts, ax=axs)
+axs.set_xlabel(None)
+# axs.set_ylim(0, 5)
+axs.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+
+data_err_opts_c['color'] = 'blue'
+hist.plotratio(hists['deltar'][str_8].sum('sample'), hists['deltar'][str_all].sum('sample'), ax=rax, error_opts=data_err_opts_c, unc='num', clear=False, label='0.8')
+data_err_opts_c['color'] = 'orange'
+hist.plotratio(hists['deltar'][str_15].sum('sample'), hists['deltar'][str_all].sum('sample'), ax=rax, error_opts=data_err_opts_c, unc='num', clear=False, label='1.5')
+rax.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+
+rax.set_ylabel("captured/total")
+rax.set_ylim(0, 1)
+rax.grid(which='both')
+plt.savefig('figs/deltar.pdf', bbox_inches='tight')
+plt.show()
 
 
 
 
-len(data17)
+
+
+
+
+
+# delta r Hbb study
+
+evtDict["HHbbWW4q"]['genHiggs1b1Pt']
+evtDict["HHbbWW4q"]['genHiggs2b1Pt']
+
+h1b = (evtDict["HHbbWW4q"]['genHiggs1b1Pt'] != -99) * (evtDict["HHbbWW4q"]['genHiggs1b2Pt'] != -99)
+h2b = (evtDict["HHbbWW4q"]['genHiggs2b1Pt'] != -99) * (evtDict["HHbbWW4q"]['genHiggs2b2Pt'] != -99)
+totb = ak.sum(h1b) + ak.sum(h2b)
+totb
+weightsb = ak.flatten(ak.Array([weights["HHbbWW4q"][h1b], weights["HHbbWW4q"][h2b]]))
+
+
+key_dict = {'pt': 'Pt', 'eta': 'Eta', 'phi': 'Phi'}
+
+
+def get_vec_bb(var, mass):
+    dict = {}
+    for key, val in key_dict.items():
+        dict[key] = ak.flatten(ak.Array([evtDict["HHbbWW4q"]['genHiggs1' + var + val][h1b], evtDict["HHbbWW4q"]['genHiggs2' + var + val][h2b]]))
+    dict['mass'] = np.ones(totb) * mass
+
+    return ak.zip(dict, with_name="PtEtaPhiMLorentzVector")
+
+
+hbbvec = get_vec_bb('', 125.1)
+b1vec = get_vec_bb('b1', 4.18)
+b2vec = get_vec_bb('b2', 4.18)
+
+testr = 0.8
+
+ak.sum(hbbvec.delta_r(b1vec) < testr) / totb
+ak.sum(hbbvec.delta_r(b2vec) < testr) / totb
+ak.sum((hbbvec.delta_r(b1vec) < testr) * (hbbvec.delta_r(b2vec) < testr)) / totb
+
+ak8_2b = (hbbvec.delta_r(b1vec) < testr) * (hbbvec.delta_r(b2vec) < testr)
+
+
+testr = 1.5
+
+ak.sum(hbbvec.delta_r(b1vec) < testr) / totb
+ak.sum(hbbvec.delta_r(b2vec) < testr) / totb
+ak.sum((hbbvec.delta_r(b1vec) < testr) * (hbbvec.delta_r(b2vec) < testr)) / totb
+
+ak15_2b = (hbbvec.delta_r(b1vec) < testr) * (hbbvec.delta_r(b2vec) < testr)
+
+
+hists['deltarbb'] = hist.Hist("Events",
+                             hist.Cat("sample", "Sample"),
+                             hist.Bin("h1", r"Higgs $p_T$ ", 51, 0, 1000),
+                             )
+
+str_all = 'Total Hbb Events'
+str_8 = '0.8 $\Delta$R Captures Both bb'
+str_15 = '1.5 $\Delta$R Captures Both bb'
+
+hists['deltarbb'].fill(sample=str_all, h1=hbbvec.pt, weight=weightsb)
+hists['deltarbb'].fill(sample=str_8, h1=hbbvec.pt[ak8_2b], weight=weightsb[ak8_2b])
+hists['deltarbb'].fill(sample=str_15, h1=hbbvec.pt[ak15_2b], weight=weightsb[ak15_2b])
+
+
+fig, (axs, rax) = plt.subplots(2, 1, gridspec_kw={"height_ratios": (3, 1)}, sharex=True)
+hist.plot1d(hists['deltarbb'], line_opts=line_opts, ax=axs)
+axs.set_xlabel(None)
+# axs.set_ylim(0, 5)
+axs.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+
+
+data_err_opts_c['color'] = 'blue'
+hist.plotratio(hists['deltarbb'][str_8].sum('sample'), hists['deltarbb'][str_all].sum('sample'), ax=rax, error_opts=data_err_opts_c, unc='num', clear=False, label='0.8')
+data_err_opts_c['color'] = 'orange'
+hist.plotratio(hists['deltarbb'][str_15].sum('sample'), hists['deltarbb'][str_all].sum('sample'), ax=rax, error_opts=data_err_opts_c, unc='num', clear=False, label='1.5')
+rax.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+
+rax.set_ylabel("captured/total")
+rax.set_ylim(0, 1)
+rax.grid(which='both')
+plt.savefig('figs/deltarbb.pdf', bbox_inches='tight')
+plt.show()
 
 
 
@@ -85,12 +295,255 @@ len(data17)
 
 
 
-XSECHHBBBB / len(evtDict["HH4b"]['weight'])
+# HH4V delta r
+
+h1W1 = (evtDict["HH4V"]['genHiggs1W1Decay'] > 1) * (evtDict["HH4V"]['genHiggs1W1Decay'] < 5)
+h1W2 = (evtDict["HH4V"]['genHiggs1W2Decay'] > 1) * (evtDict["HH4V"]['genHiggs1W2Decay'] < 5)
+h2W1 = (evtDict["HH4V"]['genHiggs2W1Decay'] > 1) * (evtDict["HH4V"]['genHiggs2W1Decay'] < 5)
+h2W2 = (evtDict["HH4V"]['genHiggs2W2Decay'] > 1) * (evtDict["HH4V"]['genHiggs2W2Decay'] < 5)
+
+h1W = h1W1 * h1W2
+h2W = h2W1 * h2W2
+
+totW = ak.sum(h1W) + ak.sum(h2W)
+
+weightsW = np.ones(totW) * weights["HH4V"][0]
+
+key_dict = {'pt': 'Pt', 'eta': 'Eta', 'phi': 'Phi'}
+
+def get_vec(var, mass):
+    dict = {}
+    for key, val in key_dict.items():
+        dict[key] = ak.flatten(ak.Array([evtDict["HH4V"]['genHiggs1' + var + val][h1W], evtDict["HH4V"]['genHiggs2' + var + val][h2W]]))
+    dict['mass'] = np.ones(totW) * mass
+
+    return ak.zip(dict, with_name="PtEtaPhiMLorentzVector")
+
+
+hvec = get_vec('', 125.1)
+W1vec = get_vec('W1', 80.379)
+W2vec = get_vec('W2', 80.379)
+W1q1vec = get_vec('W1dau1', 0)
+W1q2vec = get_vec('W1dau2', 0)
+W2q1vec = get_vec('W2dau1', 0)
+W2q2vec = get_vec('W2dau2', 0)
+
+len(hvec)
+
+testr = 0.8
+
+ak.sum(hvec.delta_r(W1vec) < testr) / totW
+ak.sum(hvec.delta_r(W2vec) < testr) / totW
+ak.sum((hvec.delta_r(W1vec) < testr) * (hvec.delta_r(W2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak8_4q = (hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)
+
+
+testr = 1.5
+
+ak.sum(hvec.delta_r(W1vec) < testr) / totW
+ak.sum(hvec.delta_r(W2vec) < testr) / totW
+ak.sum((hvec.delta_r(W1vec) < testr) * (hvec.delta_r(W2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+ak15_4q = (hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)
+
+
+
+data_err_opts_c = {
+    'linestyle': 'none',
+    'marker': '.',
+    'markersize': 10.,
+    'color': 'k',
+    'elinewidth': 1,
+}
+
+
+hists['deltarl'] = hist.Hist("Events",
+                             hist.Cat("sample", "Sample"),
+                             hist.Bin("h1", r"Higgs $p_T$ ", 51, 0, 1000),
+                             )
+
+str_all = 'Total HVV4l Events'
+str_8 = '0.8 $\Delta$R Captures All 4l'
+str_15 = '1.5 $\Delta$R Captures All 4l'
+
+hists['deltarl'].fill(sample=str_all, h1=hvec.pt, weight=weightsW)
+hists['deltarl'].fill(sample=str_8, h1=hvec.pt[ak8_4q], weight=weightsW[ak8_4q])
+hists['deltarl'].fill(sample=str_15, h1=hvec.pt[ak15_4q], weight=weightsW[ak15_4q])
+# hists['genHiggsPt'].fill(sample='HH4b full', h1=higgs_pt[:, 0], weight=weights['fullHH4b'])
+
+
+
+fig, (axs, rax) = plt.subplots(2, 1, gridspec_kw={"height_ratios": (3, 1)}, sharex=True)
+hist.plot1d(hists['deltarl'], line_opts=line_opts, ax=axs)
+axs.set_xlabel(None)
+# axs.set_ylim(0, 5)
+axs.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+
+data_err_opts_c['color'] = 'blue'
+hist.plotratio(hists['deltarl'][str_8].sum('sample'), hists['deltarl'][str_all].sum('sample'), ax=rax, error_opts=data_err_opts_c, unc='num', clear=False, label='0.8')
+data_err_opts_c['color'] = 'orange'
+hist.plotratio(hists['deltarl'][str_15].sum('sample'), hists['deltarl'][str_all].sum('sample'), ax=rax, error_opts=data_err_opts_c, unc='num', clear=False, label='1.5')
+rax.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+
+rax.set_ylabel("captured/total")
+rax.set_ylim(0, 1)
+rax.grid(which='both')
+plt.savefig('figs/deltarl.pdf', bbox_inches='tight')
+plt.show()
 
 
 
 
-evtDict["HH4b"]["totalWeight"]
+
+
+
+# HH4V delta r
+
+h1W1l = (evtDict["HH4V"]['genHiggs1W1Decay'] > 1) * (evtDict["HH4V"]['genHiggs1W1Decay'] < 5)
+h1W2l = (evtDict["HH4V"]['genHiggs1W2Decay'] > 1) * (evtDict["HH4V"]['genHiggs1W2Decay'] < 5)
+h2W1l = (evtDict["HH4V"]['genHiggs2W1Decay'] > 1) * (evtDict["HH4V"]['genHiggs2W1Decay'] < 5)
+h2W2l = (evtDict["HH4V"]['genHiggs2W2Decay'] > 1) * (evtDict["HH4V"]['genHiggs2W2Decay'] < 5)
+
+h1W1q = (evtDict["HH4V"]['genHiggs1W1Decay'] == 1)
+h1W2q = (evtDict["HH4V"]['genHiggs1W2Decay'] == 1)
+h2W1q = (evtDict["HH4V"]['genHiggs2W1Decay'] == 1)
+h2W2q = (evtDict["HH4V"]['genHiggs2W2Decay'] == 1)
+
+h1W = h1W1l * h1W2q + h1W1q * h1W2l
+h2W = h2W1l * h2W2q + h2W1q * h2W2l
+
+totW = ak.sum(h1W) + ak.sum(h2W)
+totW
+weightsW = np.ones(totW) * weights["HH4V"][0]
+
+key_dict = {'pt': 'Pt', 'eta': 'Eta', 'phi': 'Phi'}
+
+def get_vec(var, mass):
+    dict = {}
+    for key, val in key_dict.items():
+        dict[key] = ak.flatten(ak.Array([evtDict["HH4V"]['genHiggs1' + var + val][h1W], evtDict["HH4V"]['genHiggs2' + var + val][h2W]]))
+    dict['mass'] = np.ones(totW) * mass
+
+    return ak.zip(dict, with_name="PtEtaPhiMLorentzVector")
+
+
+hvec = get_vec('', 125.1)
+W1vec = get_vec('W1', 80.379)
+W2vec = get_vec('W2', 80.379)
+W1q1vec = get_vec('W1dau1', 0)
+W1q2vec = get_vec('W1dau2', 0)
+W2q1vec = get_vec('W2dau1', 0)
+W2q2vec = get_vec('W2dau2', 0)
+
+len(hvec)
+
+testr = 0.8
+
+ak.sum(hvec.delta_r(W1vec) < testr) / totW
+ak.sum(hvec.delta_r(W2vec) < testr) / totW
+ak.sum((hvec.delta_r(W1vec) < testr) * (hvec.delta_r(W2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak8_4q = (hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)
+
+
+testr = 1.5
+
+ak.sum(hvec.delta_r(W1vec) < testr) / totW
+ak.sum(hvec.delta_r(W2vec) < testr) / totW
+ak.sum((hvec.delta_r(W1vec) < testr) * (hvec.delta_r(W2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W1q2vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q1vec) < testr)) / totW
+ak.sum((hvec.delta_r(W2q2vec) < testr)) / totW
+
+ak.sum((hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)) / totW
+ak15_4q = (hvec.delta_r(W1q1vec) < testr) * (hvec.delta_r(W1q2vec) < testr) * (hvec.delta_r(W2q1vec) < testr) * (hvec.delta_r(W2q2vec) < testr)
+
+
+
+data_err_opts_c = {
+    'linestyle': 'none',
+    'marker': '.',
+    'markersize': 10.,
+    'color': 'k',
+    'elinewidth': 1,
+}
+
+
+hists['deltarql'] = hist.Hist("Events",
+                             hist.Cat("sample", "Sample"),
+                             hist.Bin("h1", r"Higgs $p_T$ ", 51, 0, 1000),
+                             )
+
+str_all = 'Total HVV2ql$\\nu$ Events'
+str_8 = '0.8 $\Delta$R Captures Both 2q'
+str_15 = '1.5 $\Delta$R Captures Both 2q'
+
+hists['deltarql'].fill(sample=str_all, h1=hvec.pt, weight=weightsW)
+hists['deltarql'].fill(sample=str_8, h1=hvec.pt[ak8_4q], weight=weightsW[ak8_4q])
+hists['deltarql'].fill(sample=str_15, h1=hvec.pt[ak15_4q], weight=weightsW[ak15_4q])
+# hists['genHiggsPt'].fill(sample='HH4b full', h1=higgs_pt[:, 0], weight=weights['fullHH4b'])
+
+
+
+fig, (axs, rax) = plt.subplots(2, 1, gridspec_kw={"height_ratios": (3, 1)}, sharex=True)
+hist.plot1d(hists['deltarql'], line_opts=line_opts, ax=axs)
+axs.set_xlabel(None)
+# axs.set_ylim(0, 5)
+axs.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+
+data_err_opts_c['color'] = 'blue'
+hist.plotratio(hists['deltarql'][str_8].sum('sample'), hists['deltarql'][str_all].sum('sample'), ax=rax, error_opts=data_err_opts_c, unc='num', clear=False, label='0.8')
+data_err_opts_c['color'] = 'orange'
+hist.plotratio(hists['deltarql'][str_15].sum('sample'), hists['deltarql'][str_all].sum('sample'), ax=rax, error_opts=data_err_opts_c, unc='num', clear=False, label='1.5')
+rax.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+
+rax.set_ylabel("captured/total")
+rax.set_ylim(0, 1)
+rax.grid(which='both')
+plt.savefig('figs/deltarql.pdf', bbox_inches='tight')
+plt.show()
+
+
+
+
+
+
+
 
 
 
@@ -112,148 +565,154 @@ higgs_pt = genpart_pt[(full_hh4b_samples['GenPart_pdgId'] == 25)]
 
 gt_300 = ak.sort(higgs_pt, axis=1)[:, -1] > 300
 
-full_hh4b_samples.fields
-
-full_hh4b_samples['genWeight']
 
 num_gt_300 = ak.sum(ak.sort(higgs_pt, axis=1)[:, -1] > 300)
-
 num_gt_300 / len(higgs_pt)
 
-fjptgencut = hh4bfjpt[ak.sort(higgs_pt, axis=1)[:, -1] > 300]
-fjmsdgencut = hh4bfjmassd[ak.sort(higgs_pt, axis=1)[:, -1] > 300]
+fhiggs_pt = genpart_pt[(full_hh4b_samples['GenPart_pdgId'] == 25)][full_hh4b_samples['GenPart_status'][higgses] == 22]
 
-ak.sum()
-ak.sum((fjptgencut[:, 0] > 250) * (fjptgencut[:, 1] > 250) * (fjmsdgencut[:, 0] > 20) * (fjmsdgencut[:, 1] > 20))
+jet_pt = ak.pad_none(full_hh4b_samples['FatJet_pt'], 2, axis=1)[:, :2]
+jet_msd = ak.pad_none(full_hh4b_samples['FatJet_msoftdrop'], 2, axis=1)[:, :2]
 
+ak.sum((jet_pt[:, 0] > 250) * (jet_pt[:, 1] > 250) * (jet_msd[:, 0] > 20) * (jet_msd[:, 1] > 20) )
 
-_ = plt.hist(full_hh4b_samples['genWeight'], bins=np.linspace(-0.1, 0.1, 101))
-
-plt.hist(higgs_pt[:, 0][full_hh4b_samples['genWeight'] < 0], np.linspace(0, 1000, 101))
-
-ak.sum(evtDict["QCD"]["totalWeight"] < 0)
-
-plt.hist(evtDict["QCD"]["totalWeight"][:100000], bins=np.linspace(-0.1, 0.1, 101))
+fhiggs_pt
+ntuple_cut_higgs_pt =
 
 
-ak.sum((hh4b_samples['genHiggs1Pt'] > 300) * (hh4b_samples['genHiggs2Pt'] > 300))
-
-plt.title("HH4b")
-plt.hist(hh4b_samples['genHiggs1Pt'], bins=np.linspace(0, 1200, 101), histtype='step')
-plt.xlabel("Gen Higgs 1 $p_T$")
 
 
-# in pb
+
+# Weights, all values in pb
 RUN2LUMI = 137000
-XSECHHBBWWQQ = 1.82e-3
-XSECHHBBBB = 31.05e-3 * 0.58**2
+LUMI17 = 40000
+XSECHHBBWWQQ = 31.05e-3 * 0.5807 * 0.2154 * 0.68**2 * 2
+XSECHH4V = 31.05e-3 * (0.2154 + 0.2643)
+XSECHHBBBB = 31.05e-3 * 0.5807**2
 ACCEPTANCE = 0.08239891267414204
+HHBBWW4Q_NEVENTS = 185417
+HH4B_NEVENTS = 807198
+DATA_MC_SF = 0.7709694064237897
+QCD_MC_SF = 0.7677139264268172
 
-XSECHHBBBB / len(evtDict["HH4b"])
 
 weights = {}
 
-weights["HH4V"] = None
-weights["QCD"] = evtDict["QCD"]["totalWeight"] * RUN2LUMI
-weights["tt"] = evtDict["tt"]["totalWeight"] * RUN2LUMI
+weights["HH4V"] = evtDict["HH4V"]["weight"] * RUN2LUMI * XSECHH4V * ACCEPTANCE
+weights["QCD"] = evtDict["QCD"]["totalWeight"] * RUN2LUMI * QCD_MC_SF
+# weights["QCD"] = evtDict["QCD"]["totalWeight"] * LUMI17 # * QCD_MC_SF
+weights["tt"] = evtDict["tt"]["totalWeight"] * RUN2LUMI # * DATA_MC_TF
 weights["HHbbWW4q"] = evtDict["HHbbWW4q"]["weight"] * RUN2LUMI * XSECHHBBWWQQ * ACCEPTANCE
-weights["HH4b"] = evtDict["HH4b"]["totalWeight"] * RUN2LUMI * ACCEPTANCE
+weights["HH4b"] = evtDict["HH4b"]["totalWeight"] * RUN2LUMI  # * ACCEPTANCE
 weights["data"] = np.ones(len(data17))
-weights["fullHH4b"] = 0.0299 * np.ones(len(full_hh4b_samples['genWeight'])) * RUN2LUMI * XSECHHBBBB / len(full_hh4b_samples['genWeight'])
-weights["fullHH4b"] = full_hh4b_samples['genWeight'] * RUN2LUMI * XSECHHBBBB / ak.sum(full_hh4b_samples['genWeight'])
+# weights["fullHH4b"] = 0.0299 * np.ones(len(full_hh4b_samples['genWeight'])) * RUN2LUMI * XSECHHBBBB / len(full_hh4b_samples['genWeight'])
+weights["fullHH4b"] = ((full_hh4b_samples['genWeight'] > 0) * 2 - 1) * RUN2LUMI * XSECHHBBBB / len(full_hh4b_samples['genWeight'])
 
-RUN2LUMI * XSECHHBBBB
+ak.sum(weights["QCD"])
+ak.sum(weights["HH4b"])
+ak.sum(weights["HHbbWW4q"])
+ak.sum(weights["tt"])
 
-weights
-
-_ = plt.hist([1, 1, 1], weights=[1, 1, -1])
 
 
-hists = {}
 
-hists['genHiggsPt'] = hist.Hist("Events",
+
+
+
+hists['genHiggsPt'] = hist.Hist("Events (Unit Normalized)",
                              hist.Cat("sample", "Sample"),
-                             hist.Bin("h1", r"Higgs 1 $p_T$ ", 101, 0, 1000),
+                             hist.Bin("h1", r"Leading Higgs $p_T$ ", 51, 0, 1000),
                              )
 
-hists['genHiggsPt'].fill(sample='HH4b gen-cut', h1=evtDict['HH4b']['genHiggs1Pt'], weight=weights['HH4b'])
-hists['genHiggsPt'].fill(sample='HH4b full', h1=higgs_pt[:, 0], weight=weights['fullHH4b'])
+hists['genHiggsPt'].fill(sample='HH4b', h1=evtDict['HH4b']['genHiggs1Pt'], weight=weights['HH4b'])
+hists['genHiggsPt'].fill(sample='HHbbWW4q', h1=evtDict['HHbbWW4q']['genHiggs1Pt'], weight=weights['HHbbWW4q'])
+# hists['genHiggsPt'].fill(sample='HH4b full', h1=higgs_pt[:, 0], weight=weights['fullHH4b'])
 
+hists['genHiggsPt'].scale(scale_factor, axis='sample')
 
-
-fig, (axs, rax) = plt.subplots(2, 1, gridspec_kw={"height_ratios": (3, 1)}, sharex=True)
-hist.plot1d(hists['genHiggsPt'], line_opts=line_opts, ax=axs)
-axs.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-hist.plotratio(hists['genHiggsPt']['HH4b gen-cut'].sum('sample'), hists['genHiggsPt']['HH4b full'].sum('sample'), ax=rax, error_opts=data_err_opts, unc='num')
+hist.plot1d(hists['genHiggsPt'], line_opts=line_opts)
+plt.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+plt.savefig('figs/hhbbWW_vs_hh4b_norm.pdf', bbox_inches='tight')
 plt.show()
 
 
-# axs.set_ylim(0)
+fig, (axs, rax) = plt.subplots(2, 1, gridspec_kw={"height_ratios": (3, 1)}, sharex=True)
+hist.plot1d(hists['genHiggsPt'], line_opts=line_opts, ax=axs, density=True)
 # axs.set_yscale('log')
-
-higgs_pt[:, 0][weights["fullHH4b"] < 0]
-weights["fullHH4b"][weights["fullHH4b"] < 0]
-
-_ = plt.hist(higgs_pt[:, 0][full_hh4b_samples['genWeight'] < 0], bins=np.linspace(0, 1000, 101), histtype='step', color='blue', weights=full_hh4b_samples['genWeight'][full_hh4b_samples['genWeight'] < 0])
-
-weights1 = np.ones(len(full_hh4b_samples['genWeight'])) * RUN2LUMI * XSECHHBBBB / len(full_hh4b_samples['genWeight'])
-weights2 = full_hh4b_samples['genWeight'] * RUN2LUMI * XSECHHBBBB / ak.sum(full_hh4b_samples['genWeight'])
-np.unique(ak.to_numpy(full_hh4b_samples['genWeight']))
-
-# _ = plt.hist(higgs_pt[:, 0], bins=np.linspace(0, 1000, 101), histtype='step', color='blue', weights=weights1)
-_ = plt.hist(higgs_pt[:, 0], bins=np.linspace(0, 1000, 101), histtype='step', color='green', weights=weights2)
-
-len(full_hh4b_samples['genWeight'])
-
-higgs_pt[:, 0][full_hh4b_samples['genWeight'] > 100]
-
-_ = plt.hist(higgs_pt[:, 0][full_hh4b_samples['genWeight'] > 0], bins=np.linspace(0, 1000, 101), histtype='step', color='blue', weights=full_hh4b_samples['genWeight'][full_hh4b_samples['genWeight'] > 0])
-_ = plt.hist(higgs_pt[:, 0][full_hh4b_samples['genWeight'] > 0], bins=np.linspace(0, 1000, 101), histtype='step', color='blue', weights=full_hh4b_samples['genWeight'][full_hh4b_samples['genWeight'] > 0])
-
-
-_ = plt.hist(evtDict['HH4b']['genHiggs1Pt'], bins=np.linspace(0, 1000, 101), histtype='step', color='green', weights=weights["HH4b"])
+axs.set_xlabel(None)
+# axs.set_ylim(0, 5)
+axs.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+hist.plotratio(hists['genHiggsPt']['HHbbWW4q'].sum('sample'), hists['genHiggsPt']['HH4b'].sum('sample'), ax=rax, error_opts=data_err_opts, unc='num')
+rax.set_ylabel("bbWW/4b")
+rax.set_ylim(0, 2)
+plt.savefig('figs/hhbbWW_vs_hh4b_norm.pdf', bbox_inches='tight')
+plt.show()
 
 
 
-evtDict["HHbbWW4q"]["weight"]
-evtDict["HHbbWW4q"]["totalWeight"]
-evtDict["HHbbWW4q"]["pileupWeight"]
-evtDict["HHbbWW4q"]["pileupWeight"] * evtDict["HHbbWW4q"]["weight"]
+
+hists['genHiggsMass'] = hist.Hist("Events (Unit Normalized)",
+                             hist.Cat("sample", "Sample"),
+                             hist.Bin("h1", r"HH Mass", 51, 200, 2500),
+                             )
 
 
-plt.hist(evtDict["HHbbWW4q"]["pileupWeight"])
-plt.xlabel('Pileup Weight')
+hists['genHiggsMass'].fill(sample='HH4b', h1=evtDict['HH4b']['genHH_mass'], weight=weights['HH4b'])
+hists['genHiggsMass'].fill(sample='HHbbWW4q', h1=evtDict['HHbbWW4q']['genHH_mass'], weight=weights['HHbbWW4q'])
+# hists['genHiggsPt'].fill(sample='HH4b full', h1=higgs_pt[:, 0], weight=weights['fullHH4b'])
+hists['genHiggsMass'].scale(scale_factor, axis='sample')
 
-plt.hist(evtDict["HHbbWW4q"]["totalWeight"])
-plt.xlabel('Total Weight', loc='center')
-
-RUN2LUMI * XSECHHBBWWQQ
-RUN2LUMI * XSECHHBBWWQQ * ACCEPTANCE
-
-XSECHHBBBB
-
-XSECHHBBBB / 807198
+hist.plot1d(hists['genHiggsMass'], line_opts=line_opts)
+plt.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+plt.savefig('figs/hhbbWW_vs_hh4b_mass_norm.pdf', bbox_inches='tight')
+plt.show()
 
 
-# evtDict['HHbbWW4q']['genHiggs1W2Decay']
-# evtDict['HHbbWW4q']['genHiggs1W2Decay']
-# evtDict['HHbbWW4q']['genHiggs1W1Decay']
-# evtDict['HHbbWW4q']['genHiggs2W1Decay']
-# evtDict['HHbbWW4q']['genHiggs2W2Decay']
-#
-# np.unique(np.array((evtDict['HHbbWW4q']['genHiggs1W2Decay'] + evtDict['HHbbWW4q']['genHiggs2W1Decay'])))
-#
-# evtDict['HHbbWW4q']['genHiggs1Pt']
-# evtDict['HHbbWW4q']['genHiggs1W1Pt']
-# evtDict['HHbbWW4q']['fatJet1Pt']
-# evtDict['HHbbWW4q']['fatJet2Pt']
-# evtDict['HHbbWW4q']['genHiggs2Pt']
-#
-#
-# evtDict['HHbbWW4q']['genHiggs1Eta'][:5]
-# evtDict['HHbbWW4q']['fatJet1Eta'][:5]
-# evtDict['HHbbWW4q']['fatJet2Eta'][:5]
-# evtDict['HHbbWW4q']['genHiggs2Eta'][:5]
+fig, (axs, rax) = plt.subplots(2, 1, gridspec_kw={"height_ratios": (3, 1)}, sharex=True)
+hist.plot1d(hists['genHiggsMass'], line_opts=line_opts, ax=axs, density=True)
+# axs.set_yscale('log')
+axs.set_xlabel(None)
+# axs.set_ylim(0, 5)
+axs.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+hist.plotratio(hists['genHiggsMass']['HHbbWW4q'].sum('sample'), hists['genHiggsMass']['HH4b'].sum('sample'), ax=rax, error_opts=data_err_opts, unc='num')
+rax.set_ylabel("bbWW/4b")
+rax.set_ylim(0, 5)
+plt.savefig('figs/hhbbWW_vs_hh4b_mass_norm.pdf', bbox_inches='tight')
+plt.show()
+
+
+tot_events = {}
+vals = hists['fatJetPt'].project("sample", "jet1").values()
+for s in evtDict.keys():
+    tot_events[s] = np.sum(vals[(s,)])
+
+
+tot_events
+
+
+scale_factor = {'HH4V': 1 / tot_events['HH4V'],
+        'HHbbWW4q': 1 / tot_events['HHbbWW4q'],
+        'HH4b': 1 / tot_events['HH4b'],
+        'QCD': 1 / (tot_events['QCD'] + tot_events['tt']),
+        'tt': 1 / (tot_events['QCD'] + tot_events['tt'])}
+
+
+
+
+
+# fig, (axs, rax) = plt.subplots(2, 1, gridspec_kw={"height_ratios": (3, 1)}, sharex=True)
+# hist.plot1d(hists['genHiggsPt'], line_opts=line_opts, ax=axs)
+# # axs.set_yscale('log')
+# axs.set_xlabel(None)
+# axs.set_ylim(0, 5)
+# axs.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+# hist.plotratio(hists['genHiggsPt']['HH4b gen-cut'].sum('sample'), hists['genHiggsPt']['HH4b full'].sum('sample'), ax=rax, error_opts=data_err_opts, unc='num')
+# rax.set_ylabel("gen-cut/full")
+# plt.savefig('figs/gen_cut_vs_full_no_acceptance.pdf', bbox_inches='tight')
+# plt.show()
+
+
+
 
 
 keys = ["genHiggs1W1", "genHiggs1W2", "genHiggs2W1", "genHiggs2W2"]
@@ -305,7 +764,7 @@ fatJet3 = ak.zip({"pt": evtDict['HHbbWW4q']['fatJet3Pt'], "eta": evtDict['HHbbWW
 
 # New Javier's method
 
-fatJet1H1 = fatJet1.delta_r(genHiggs1) < 0.8
+fatJet1H1 = fatJet1.delta_r(genHiggs1) < testr
 fatJet1H1W = fatJet1H1 * (fatJet1.delta_r(fvecs["genHiggs1W1"]) < 0.8) * (fatJet1.delta_r(fvecs["genHiggs1W2"]) < 0.8)
 fatJet1H2 = fatJet1.delta_r(genHiggs2) < 0.8
 fatJet1H2W = fatJet1H2 * (fatJet1.delta_r(fvecs["genHiggs2W1"]) < 0.8) * (fatJet1.delta_r(fvecs["genHiggs2W2"]) < 0.8)
@@ -361,24 +820,6 @@ def init_hists(vars, labels, binrs, fatJet=True, name=None, scale=True, bbsorted
             bins.append(hist.Bin("{}{}".format(bpf, j + 1), r"{} {}".format(lpf[j], labels), *binrs))
 
         hists[name + vars] = hist.Hist(ename, hist.Cat("sample", "Sample"), *bins)
-
-
-# weights = {
-#     "HH4V": None,
-#     "HHbbWW4q": evtDict["HHbbWW4q"]['weight'],
-#     "QCD": evtDict["QCD"]['weight'],
-#     "tt": evtDict["tt"]['weight'],
-# }
-
-
-# scale_factor = {
-#         'HH4V': 1 / len(evtDict["HH4V"]["weight"]),
-#         'HHbbWW4q': 1 / np.sum(evtDict["HHbbWW4q"]["weight"]),
-#         'HHbbWW4q - Hbb': 2 / np.sum(evtDict["HHbbWW4q"]["weight"]),
-#         'HHbbWW4q - HWW': 2 / np.sum(evtDict["HHbbWW4q"]["weight"]),
-#         'QCD': 1 / (np.sum(evtDict["QCD"]["weight"]) + np.sum(evtDict["tt"]["weight"])),
-#         'tt': 1 / (np.sum(evtDict["QCD"]["weight"]) + np.sum(evtDict["tt"]["weight"])),
-#         }
 
 
 def fill_hists(vars, fatJet=True, name=None, hh4v=True, scale=True, pevtDict=None, useEDWeights=False, data=False):
@@ -451,14 +892,10 @@ data_err_opts = {
 regbg = re.compile('^(QCD|tt)$')
 regsig = re.compile('^(HH4V|HHbbWW4q)$')
 regnotdata = re.compile('^(?!data).*')
-
-print(regnotdata.match('test'))
-print(regbg.match(''))
-
 regmc = re.compile('^(QCD|tt|HHbbWW4q)$')
 
 
-def plot_hists(vars, fname, binrs, fatJet=True, name=None, hh4v=True, hh4b=False, sepsig=True, stackall=False, log=False, lumilabel=False, data=False):
+def plot_hists(vars, fname, binrs, fatJet=True, name=None, hh4v=True, hh4b=False, sepsig=True, stackall=False, log=False, lumilabel=None, data=False, rat_ylim=1):
     npf = "fatJet" if fatJet else "genHiggs"
     bpf = "jet" if fatJet else "h"
     nbins = 2 if fatJet else 2
@@ -488,21 +925,21 @@ def plot_hists(vars, fname, binrs, fatJet=True, name=None, hh4v=True, hh4b=False
                     _ = axs[i, 1].hist(evtDict["HHbbWW4q"]["fatJet{}{}".format(2, var)] * fatJet2W, bins=np.linspace(binrs[i][1], binrs[i][2], binrs[i][0] + 1), color=colors_cycle[5], label='HHbbWW4q - HWW', weights=weights["HHbbWW4q"] * scale_factor["HHbbWW4q"], histtype='step', **line_opts)
 
                     for j in range(nbins):
-                        ylim = np.max(list(hists[name + var].project("sample", bpf + str(j + 1)).values().values())) * 1.1
+                        ylim = np.max(list(hists[name + var][regnotdata].project("sample", bpf + str(j + 1)).values().values())) * 1.1
                         axs[i, j].set_prop_cycle(cycler(color=colors_cycle))
                         if hh4v: hist.plot1d(hists[name + var]['hh4v'].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[i, j], clear=False, line_opts=line_opts)
 
                         axs[i, j].set_prop_cycle(cycler(color=colors_cycle[2:]))
-                        ax = hist.plot1d(hists[name + var][regbg].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[i, j], stack=True, clear=False, fill_opts=fill_opts)
+                        hist.plot1d(hists[name + var][regbg].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[i, j], stack=True, clear=False, fill_opts=fill_opts)
                         axs[i, j].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
                         axs[i, j].set_ylim(0, ylim)
                 else:
                     for j in range(nbins):
-                        ylim = np.max(list(hists[name + var].project("sample", bpf + str(j + 1)).values().values())) * 1.1
+                        ylim = np.max(list(hists[name + var][regnotdata].project("sample", bpf + str(j + 1)).values().values())) * 1.1
                         axs[i, j].set_prop_cycle(cycler(color=colors_cycle))
                         hist.plot1d(hists[name + var][regsig].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[i, j], clear=False, line_opts=line_opts)
                         axs[i, j].set_prop_cycle(cycler(color=colors_cycle[2:]))
-                        ax = hist.plot1d(hists[name + var][regbg].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[i, j], stack=True, clear=False, fill_opts=fill_opts)
+                        hist.plot1d(hists[name + var][regbg].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[i, j], stack=True, clear=False, fill_opts=fill_opts)
                         axs[i, j].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
                         axs[i, j].set_ylim(0, ylim)
 
@@ -527,46 +964,49 @@ def plot_hists(vars, fname, binrs, fatJet=True, name=None, hh4v=True, hh4b=False
                 _ = axs[1].hist(evtDict["HHbbWW4q"]["fatJet{}{}".format(2, var)] * fatJet2W, bins=np.linspace(binrs[1], binrs[2], binrs[0] + 1), color=colors_cycle[5], label='HHbbWW4q - HWW', weights=weights["HHbbWW4q"] * scale_factor["HHbbWW4q"], histtype='step', **line_opts)
 
                 for j in range(nbins):
-                    ylim = np.max(list(hists[name + var].project("sample", bpf + str(j + 1)).values().values())) * 1.1
+                    ylim = np.max(list(hists[name + var][regnotdata].project("sample", bpf + str(j + 1)).values().values())) * 1.1
                     axs[j].set_prop_cycle(cycler(color=colors_cycle))
                     if hh4v: hist.plot1d(hists[name + var]['HH4V'].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[j], clear=False, line_opts=line_opts)
 
                     axs[j].set_prop_cycle(cycler(color=colors_cycle[2:]))
-                    ax = hist.plot1d(hists[name + var][regbg].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[j], stack=True, clear=False, fill_opts=fill_opts)
+                    hist.plot1d(hists[name + var][regbg].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[j], stack=True, clear=False, fill_opts=fill_opts)
                     axs[j].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
                     axs[j].set_ylim(0, ylim)
             else:
                 for j in range(nbins):
-                    if stackall:
-                        # hist.plot1d(hists[name + var][regnotdata].sum(bpf + str((j * -1) + 2)), overlay='sample', ax=axs[j], clear=False, stack=True, fill_opts=fill_opts, order=['HHbbWW4q', 'tt', 'QCD'])
+                    if data:
+                        # hist.plot1d(hists[name + var][regbg].project('sample', bpf + str(j + 1)), overlay='sample', ax=axs[j], clear=False, stack=True, fill_opts=fill_opts, order=['tt', 'QCD'])
+                        hist.plot1d(hists[name + var]['QCD'].project('sample', bpf + str(j + 1)), overlay='sample', ax=axs[j], clear=False, stack=True, fill_opts=fill_opts, order=['QCD'])
+                        hist.plot1d(hists[name + var]['data'].project("sample", bpf + str(j + 1)), ax=axs[j], clear=False, error_opts=data_err_opts)
+                        axs[j].set_xlabel(None)
+                        hist.plotratio(num=hists[name + var]['data'].project("sample", bpf + str(j + 1)).sum("sample"), denom=hists[name + var][regbg].project("sample", bpf + str(j + 1)).sum("sample"), ax=rax[j], error_opts=data_err_opts, unc='num')
+                        rax[j].set_ylabel('data/MC')
+                        rax[j].set_ylim(0, rat_ylim)
+                        rax[j].grid()
+                    elif stackall:
                         hist.plot1d(hists[name + var][regnotdata].project('sample', bpf + str(j + 1)), overlay='sample', ax=axs[j], clear=False, stack=True, fill_opts=fill_opts, order=['HHbbWW4q', 'tt', 'QCD'])
                     else:
-                        ylim = np.max(list(hists[name + var].project("sample", bpf + str(j + 1)).values().values())) * 1.1
+                        ylim = np.max(list(hists[name + var][regnotdata].project("sample", bpf + str(j + 1)).values().values())) * 1.1
                         axs[j].set_prop_cycle(cycler(color=colors_cycle))
                         hist.plot1d(hists[name + var][sig].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[j], clear=False, line_opts=line_opts)
                         axs[j].set_prop_cycle(cycler(color=colors_cycle[3::-1]))
-                        ax = hist.plot1d(hists[name + var][regbg].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[j], stack=True, clear=False, fill_opts=fill_opts, order=['tt', 'QCD'])
+                        hist.plot1d(hists[name + var][regbg].project("sample", bpf + str(j + 1)), overlay='sample', ax=axs[j], stack=True, clear=False, fill_opts=fill_opts, order=['tt', 'QCD'])
                         axs[j].set_ylim(0, ylim)
 
                     axs[j].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
+
                     if log:
                         axs[j].set_ylim(1)
                         axs[j].set_yscale('log')
 
-                    if lumilabel: hep.label.lumitext("137fb$^{-1}$", ax=axs[j])
+                    if lumilabel is not None: hep.label.lumitext(str(lumilabel) + "fb$^{-1}$", ax=axs[j])
 
-                    if data:
-                        hist.plot1d(hists[name + var]['data'].project("sample", bpf + str(j + 1)), ax=axs[j], clear=False, error_opts=data_err_opts)
-                        axs[j].set_xlabel(None)
-                        hist.plotratio(num=hists[name + var]['data'].project("sample", bpf + str(j + 1)).sum("sample"), denom=hists[name + var][regnotdata].project("sample", bpf + str(j + 1)).sum("sample"), ax=rax[j], error_opts=data_err_opts, unc='num')
-                        rax[j].set_ylabel('data/MC')
-                        rax[j].set_ylim(0, 1)
+
 
         plt.tight_layout(0.5)
         plt.savefig("figs/{}.pdf".format(fname), bbox_inches='tight')
         plt.show()
 
-hists
 
 init_hists("Pt", "$p_T$ (GeV)", [40, 200, 2000], fatJet=True)
 fill_hists("Pt", fatJet=True, scale=False)
@@ -580,10 +1020,6 @@ for s in evtDict.keys():
 tot_events
 
 
-regtest = re.compile('^(QCD|tt)$')
-print(regtest.match('tt'))
-
-
 scale_factor = {'HH4V': 1 / tot_events['HH4V'],
         'HHbbWW4q': 1 / tot_events['HHbbWW4q'],
         'HH4b': 1 / tot_events['HH4b'],
@@ -591,49 +1027,41 @@ scale_factor = {'HH4V': 1 / tot_events['HH4V'],
         'tt': 1 / (tot_events['QCD'] + tot_events['tt'])}
 
 
+
+
 init_hists("Pt", "$p_T$ (GeV)", [40, 200, 2000], fatJet=True)
 fill_hists("Pt", fatJet=True, scale=True)
 plot_hists("Pt", "kin_tests", [40, 200, 2000])
 
-hists['dataMassSD'][regnotdata].project
-hists['dataMassSD'].values()
-
-hist.plot1d(hists['dataMassSD'][regnotdata].project('sample', 'jet1'), overlay='sample', clear=False, stack=True, fill_opts=fill_opts)
-
-
-
-rax[j].set_ylabel('Ratio')
-
 
 init_hists("MassSD", "Soft Drop Mass (GeV)", [50, 1, 400], name="data", scale=False)
 fill_hists("MassSD", scale=False, data=True, name='data')
-plot_hists("MassSD", "data_masssd_rat", [50, 1, 400], data=True, name='data', stackall=True, sepsig=False, log=True)
+plot_hists("MassSD", "data_masssd_rat_pre_tf_qcd_only", [50, 1, 400], data=True, name='data', stackall=True, sepsig=False, log=True, rat_ylim=1.5, lumilabel=40)
 
 
 init_hists("Pt", "$p_T$ (GeV)", [40, 200, 2000], name="data", scale=False)
 fill_hists("Pt", scale=False, data=True, name='data')
-plot_hists("Pt", "data_pt_rat", [40, 200, 2000], data=True, name='data', stackall=True, sepsig=False, log=True)
+plot_hists("Pt", "data_pt_rat_post_tf_test", [40, 200, 2000], data=True, name='data', stackall=True, sepsig=False, log=True, rat_ylim=1.5, lumilabel=40)
 
 
 
 
 
-
-vars = ["Pt", "Mass", "MassSD"]
-varsl = ["$p_T$ (GeV)", "Mass (GeV)", "Soft Drop Mass (GeV)"]
-bins = [[40, 200, 2000], [50, 1, 400], [50, 1, 400]]
-init_hists(vars, varsl, bins, fatJet=True)
-fill_hists(copy(vars), fatJet=True, scale=True)
-plot_hists(vars, "jet_kin", bins)
-
-
-vars = ["Pt", "Mass", "MassSD"]
-varsl = ["$p_T$ (GeV)", "Mass (GeV)", "Soft Drop Mass (GeV)"]
-bins = [[50, 250, 500], [30, 50, 200], [30, 50, 200]]
-init_hists(vars, varsl, bins, fatJet=True, name="fine")
-fill_hists(copy(vars), fatJet=True, scale=True, name="fine")
-plot_hists(vars, "jet_kin_fine", bins, name="fine")
-
+# vars = ["Pt", "Mass", "MassSD"]
+# varsl = ["$p_T$ (GeV)", "Mass (GeV)", "Soft Drop Mass (GeV)"]
+# bins = [[40, 200, 2000], [50, 1, 400], [50, 1, 400]]
+# init_hists(vars, varsl, bins, fatJet=True)
+# fill_hists(copy(vars), fatJet=True, scale=True)
+# plot_hists(vars, "jet_kin", bins)
+#
+#
+# vars = ["Pt", "Mass", "MassSD"]
+# varsl = ["$p_T$ (GeV)", "Mass (GeV)", "Soft Drop Mass (GeV)"]
+# bins = [[50, 250, 500], [30, 50, 200], [30, 50, 200]]
+# init_hists(vars, varsl, bins, fatJet=True, name="fine")
+# fill_hists(copy(vars), fatJet=True, scale=True, name="fine")
+# plot_hists(vars, "jet_kin_fine", bins, name="fine")
+#
 
 vars = {
     "HH4V": "PNetXbb_alt",
@@ -654,6 +1082,616 @@ plot_hists("DeepAK8MD_H4qvsQCD", "deepak8mdh4q", [100, 0, 1], hh4v=False)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+events_bb_sorted = {}
+fatjet_vars = ["Pt", "MassSD", "DeepAK8MD_H4qvsQCD"]
+
+for s, evts in evtDict.items():
+    if s != "HH4V":
+        pnet_key = "PNetXbb_alt" if s == "HHbbWW4q" else "PNetXbb"
+        jet1_bb_leading = evts["fatJet1" + pnet_key] > evts["fatJet2" + pnet_key]
+
+        ak_dict =   {
+                        "fatJet1PNetXbb": evts["fatJet1" + pnet_key] * jet1_bb_leading + evts["fatJet2" + pnet_key] * ~jet1_bb_leading,
+                        "fatJet2PNetXbb": evts["fatJet1" + pnet_key] * ~jet1_bb_leading + evts["fatJet2" + pnet_key] * jet1_bb_leading,
+                        "weight": weights[s],
+                    }
+
+        for var in fatjet_vars:
+            ak_dict["fatJet1" + var] = evts["fatJet1" + var] * jet1_bb_leading + evts["fatJet2" + var] * ~jet1_bb_leading
+            ak_dict["fatJet2" + var] = evts["fatJet1" + var] * ~jet1_bb_leading + evts["fatJet2" + var] * jet1_bb_leading
+
+        events_bb_sorted[s] = ak.zip(ak_dict)
+
+
+events_bb_sorted
+
+# vars = ["Pt", "MassSD"]
+# varsl = ["$p_T$ (GeV)", "Soft Drop Mass (GeV)"]
+# bins = [[50, 250, 600], [50, 30, 200]]
+# init_hists(vars, varsl, bins, fatJet=True, name="bb_sorted", bbsorted=True)
+# fill_hists(copy(vars), fatJet=True, scale=True, name="bb_sorted", pevtDict=events_bb_sorted)
+# plot_hists(vars, "jet_kin_bb_leading", bins, name="bb_sorted", hh4v=False, sepsig=False)
+#
+# init_hists("DeepAK8MD_H4qvsQCD", "DeepAK8MD H4q vs QCD Score", [100, 0, 1], fatJet=True, name="bb_sorted", bbsorted=True)
+# fill_hists("DeepAK8MD_H4qvsQCD", fatJet=True, scale=True, name="bb_sorted", pevtDict=events_bb_sorted)
+# plot_hists("DeepAK8MD_H4qvsQCD", "jet_deepak8mdh4q_bb_leading", [100, 0, 1], name="bb_sorted", hh4v=False, sepsig=False)
+#
+# init_hists("PNetXbb", "ParticleNet Xbb Tagger Score", [100, 0, 1], fatJet=True, name="bb_sorted", bbsorted=True)
+# fill_hists("PNetXbb", fatJet=True, scale=True, name="bb_sorted", pevtDict=events_bb_sorted)
+# plot_hists("PNetXbb", "jet_pnetxbb_bb_leading", [100, 0, 1], name="bb_sorted", hh4v=False, sepsig=False)
+
+
+
+def cutflow_func(var_cuts, events=events_bb_sorted):
+    cutflow = {}
+    events_cuts = {}
+    for s, evts in events.items():
+        cuts = []
+        for var, brange in var_cuts.items():
+            if '+' in var:
+                vars = var.split('+')
+                cut1 = evts[vars[0]] > brange[0]
+                cut2 = evts[vars[0]] < brange[1]
+                for tvars in vars[1:]:
+                    cut1 = cut1 + (evts[tvars] > brange[0])
+                    cut2 = cut2 + (evts[tvars] < brange[1])
+
+                cuts.append(cut1)
+                cuts.append(cut2)
+            else:
+                cuts.append(evts[var] > brange[0])
+                cuts.append(evts[var] < brange[1])
+
+        cut = cuts[0]
+        cutflow[s] = []
+        for i in np.arange(1, len(cuts)):
+            cutflow[s].append(np.sum(evts[cut].weight))
+            cut = cut * cuts[i]
+
+        cutflow[s].append(np.sum(evts[cut].weight))
+        events_cuts[s] = evts[cut]
+
+    return cutflow, events_cuts
+
+
+def cftable_func(cutflow, var_cuts, cut_labels=None, cut_idx=None):
+    if cut_idx is None:
+        i = 0
+        cut_idx = []
+        for brange in var_cuts.values():
+            for j in brange:
+                if j != 9999 and j != -9999:
+                    cut_idx.append(i)
+                i += 1
+
+    return pandas.DataFrame(np.round(np.array(list(cutflow.values()))[:, cut_idx], 2), list(cutflow.keys()), cut_labels)
+
+
+
+
+
+
+# Transfer factor study
+
+# Cutting above the data trigger turn-ons
+var_cuts = {
+    "fatJet1Pt": [500, 9999],
+    "fatJet2Pt": [500, 9999],
+    # "fatJet1MassSD": [200, 9999],
+    # "fatJet2MassSD": [200, 9999],
+}
+
+cutflow_control, events_tf_cuts = cutflow_func(var_cuts)
+
+cftable = cftable_func(cutflow_control, var_cuts)
+cftable
+
+cutflow_control['data'][-1] / (cutflow_control['tt'][-1] + cutflow_control['QCD'][-1])
+(cutflow_control['data'][-1] - cutflow_control['tt'][-1]) / cutflow_control['QCD'][-1]
+
+ak.sum(weights['data'])
+
+var = "MassSD"
+varl = "Soft Drop Mass (GeV)"
+bins =  [50, 0, 400]
+init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sorted_cut", bbsorted=True)
+fill_hists(var, fatJet=True, scale=False, name="bb_sorted_cut", pevtDict=events_tf_cuts, useEDWeights=True)
+plot_hists(var, "jet_cuts_masssd_rat_post_pt_cut", bins, data=True, name="bb_sorted_cut", stackall=True, sepsig=False, log=True, rat_ylim=1.5, lumilabel=40)
+
+var = "Pt"
+varl = "$p_T$ (GeV)"
+bins =  [38, 500, 2000]
+init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sorted_cut", bbsorted=True)
+fill_hists(var, fatJet=True, scale=False, name="bb_sorted_cut", pevtDict=events_tf_cuts, useEDWeights=True)
+plot_hists(var, "jet_cuts_pt_rat_post_tf", bins, data=True, name="bb_sorted_cut", stackall=True, sepsig=False, log=True, rat_ylim=1.5, lumilabel=40)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# kin cuts only
+
+kin_cuts = {
+    "fatJet1Pt": [310, 9999],
+    "fatJet2Pt": [310, 9999],
+    "fatJet1Pt+fatJet2Pt": [350, 9999],
+    "fatJet1MassSD": [105, 135],
+    "fatJet2MassSD": [115, 135],
+}
+
+cutflow, events_bbs_kin_cuts = cutflow_func(kin_cuts)
+
+cutflow
+
+var = {
+    "HHbbWW4q": "PNetXbb_alt",
+    "QCD": "PNetXbb",
+    "tt": "PNetXbb",
+}
+var = "PNetXbb"
+varl = "PNetXbb Score"
+bins =  [50, 0.9, 1]
+init_hists("PNetXbb", varl, bins, scale=False, fatJet=True, name="bb_sorted_cut", bbsorted=True)
+fill_hists(var, fatJet=True, scale=False, name="bb_sorted_cut", pevtDict=events_bbs_kin_cuts, useEDWeights=True)
+plot_hists(var, "jet_cut_pnet2", bins, name="bb_sorted_cut", hh4v=False, sepsig=False, stackall=True, log=True)
+
+
+init_hists("DeepAK8MD_H4qvsQCD", "DeepAK8MD H4q vs QCD", [100, 0, 1], fatJet=True, name="bb_sorted_cut", bbsorted=True)
+fill_hists("DeepAK8MD_H4qvsQCD", fatJet=True, scale=True, name="bb_sorted", pevtDict=events_bbs_kin_cuts, useEDWeights=True)
+plot_hists("DeepAK8MD_H4qvsQCD", "jet_cut_deepak8mdh4q_bb_leading2", [100, 0, 1], name="bb_sorted", hh4v=False, sepsig=False)
+
+
+yields = {"sig": [], "bg": []}
+for pnetcutoff in np.arange(0.99, 0.995, 0.001)[:-1]:
+    sigy = []
+    bgy = []
+    for dakcutoff in np.arange(0.9, 1, 0.01):
+        cuts = {}
+        for s, evts in events_bbs_kin_cuts.items():
+            cuts[s] = (evts["fatJet1PNetXbb"] > pnetcutoff) * (evts["fatJet2DeepAK8MD_H4qvsQCD"] > dakcutoff)
+
+        sig = np.sum(events_bbs_kin_cuts["HHbbWW4q"][cuts["HHbbWW4q"]].weight)
+        bg = np.sum(events_bbs_kin_cuts["QCD"][cuts["QCD"]].weight) + np.sum(events_bbs_kin_cuts["tt"][cuts["tt"]].weight)
+        sigy.append(sig)
+        bgy.append(bg)
+
+    yields["sig"].append(sigy)
+    yields["bg"].append(bgy)
+
+
+
+yields['sig']
+yields['']
+
+
+
+# kin + tagger cuts
+
+var_cuts = {
+    "fatJet1Pt": [300, 9999],
+    "fatJet2Pt": [300, 9999],
+    "fatJet1MassSD": [75, 150],
+    "fatJet2MassSD": [50, 150],
+    "fatJet1PNetXbb": [0.99, 9999],
+    "fatJet2DeepAK8MD_H4qvsQCD": [0.94, 9999],
+}
+
+hhbbWW_cutflow, events_bbs_cuts = cutflow_func(var_cuts)
+
+cut_labels = ['Jet1 pT > 300',
+                'Jet2 pT > 300',
+                'Jet1 MassSD > 75',
+                'Jet1 MassSD < 150',
+                'Jet1 MassSD > 50',
+                'Jet1 MassSD < 150',
+                'Jet1 PNetXbb > 0.99',
+                'Jet2 DeepAK8H4qvsQCD > 0.94',
+            ]
+
+cftable = cftable_func(hhbbWW_cutflow, var_cuts, cut_labels)
+cftable
+
+
+var = "MassSD"
+varl = "Soft Drop Mass (GeV)"
+bins =  [10, 50, 150]
+init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sorted_cut", bbsorted=True)
+fill_hists(var, fatJet=True, scale=False, name="bb_sorted_cut", pevtDict=events_bbs_cuts, useEDWeights=True)
+plot_hists(var, "jet_cuts_masssd", bins, name="bb_sorted_cut", hh4v=False, sepsig=False, lumilabel=True, stackall=True)
+
+
+init_hists("MassSD", "Soft Drop Mass (GeV)", scale=False, [50, 1, 400], name="data", scale=False)
+fill_hists("MassSD", scale=False, data=True, name='data')
+plot_hists("MassSD", "data_masssd_rat_pre_tf", [50, 1, 400], data=True, name='data', stackall=True, sepsig=False, log=True, rat_ylim=0.5)
+
+
+# 4b kin + bbWW tagger cuts
+
+var_cuts = {
+    "fatJet1Pt": [310, 9999],
+    "fatJet2Pt": [310, 9999],
+    "fatJet1Pt+fatJet2Pt": [350, 9999],
+    "fatJet1MassSD": [105, 135],
+    "fatJet1PNetXbb": [0.99, 9999],
+    "fatJet2DeepAK8MD_H4qvsQCD": [0.94, 9999],
+}
+
+hhbbWW_cutflow, events_bbs_cuts = cutflow_func(var_cuts)
+
+cut_labels = ['Jet1 pT > 310',
+                'Jet2 pT > 310',
+                'At least 1 jet pT > 350',
+                'Jet1 MassSD > 105',
+                'Jet1 MassSD < 135',
+                'Jet1 PNetXbb > 0.99',
+                'Jet2 DeepAK8H4qvsQCD > 0.94',
+            ]
+
+del(hhbbWW_cutflow['HH4b'])
+cftable = cftable_func(hhbbWW_cutflow, var_cuts, cut_labels)
+cftable
+
+cftable.to_csv('hhbbWW_cutflow.csv')
+
+
+# 4b kin + bbWW tagger cuts + mass2
+
+var_cuts = {
+    "fatJet1Pt": [310, 9999],
+    "fatJet2Pt": [310, 9999],
+    "fatJet1Pt+fatJet2Pt": [350, 9999],
+    "fatJet1MassSD": [105, 135],
+    "fatJet1PNetXbb": [0.99, 9999],
+    "fatJet2DeepAK8MD_H4qvsQCD": [0.94, 9999],
+    "fatJet2MassSD": [115, 135],
+}
+
+hhbbWW_cutflow = cutflow_func(var_cuts)[0]
+
+cut_labels = ['Jet1 pT > 310',
+                'Jet2 pT > 310',
+                'At least 1 jet pT > 350',
+                'Jet1 MassSD > 105',
+                'Jet1 MassSD < 135',
+                'Jet1 PNetXbb > 0.99',
+                'Jet2 DeepAK8H4qvsQCD > 0.94',
+                'Jet2 MassSD > 115',
+                'Jet2 MassSD < 135',
+            ]
+
+del(hhbbWW_cutflow['HH4b'])
+cftable = cftable_func(hhbbWW_cutflow, var_cuts, cut_labels)
+cftable
+
+cftable.to_csv('hhbbWW_cutflow.csv')
+
+
+
+# mass sidebands
+
+mass_sb1 = {
+    "fatJet2MassSD": [105, 115],
+}
+
+msb1_cf = cutflow_func(mass_sb1, events_bbs_cuts)[0]
+msb1_cf
+
+
+mass_sb2 = {
+    "fatJet2MassSD": [135, 145],
+}
+
+msb2_cf = cutflow_func(mass_sb2, events_bbs_cuts)[0]
+msb2_cf
+
+
+
+
+# bbWW kin + 4b tagger cuts
+
+var_cuts = {
+    "fatJet1Pt": [300, 9999],
+    "fatJet2Pt": [300, 9999],
+    "fatJet1MassSD": [75, 150],
+    "fatJet2MassSD": [50, 150],
+    "fatJet1PNetXbb": [0.985, 9999],
+    "fatJet2PNetXbb": [0.985, 9999],
+}
+
+hhbbWW_cutflow, events_bbs_cuts = cutflow_func(var_cuts)
+
+cut_labels = ['Jet1 pT > 300',
+                'Jet2 pT > 300',
+                'Jet1 MassSD > 75',
+                'Jet1 MassSD < 150',
+                'Jet1 MassSD > 50',
+                'Jet1 MassSD < 150',
+                'Jet1 PNetXbb > 0.99',
+                'Jet2 PNetXbb > 0.94',
+            ]
+
+cftable = cftable_func(hhbbWW_cutflow, var_cuts, cut_labels)
+cftable
+
+
+
+
+# 4b cuts - jet2 MassSD
+
+hh4b_var_cuts = {
+    "fatJet1Pt": [310, 9999],
+    "fatJet2Pt": [310, 9999],
+    "fatJet1Pt+fatJet2Pt": [350, 9999],
+    "fatJet1MassSD": [105, 135],
+    # "fatJet2MassSD": [50, 150],
+    "fatJet1PNetXbb": [0.985, 9999],
+    "fatJet2PNetXbb": [0.985, 9999],
+}
+
+hh4bcf, hh4b_cuts_evts = cutflow_func(hh4b_var_cuts)
+hh4bcf
+
+
+cut_labels = ['Jet1 pT > 310',
+                'Jet2 pT > 310',
+                'At least 1 jet pT > 350',
+                'Jet1 MassSD > 105',
+                'Jet1 MassSD < 135',
+                'Jet1 PNetXbb > 0.985',
+                'Jet2 PNetXbb > 0.985',
+            ]
+
+del(hh4bcf['HHbbWW4q'])
+
+cftable = cftable_func(hh4bcf, hh4b_var_cuts, cut_labels)
+cftable
+
+
+cftable.to_csv('hh4b_cutflow_2.csv')
+
+
+# 4b cut
+
+hh4b_mass2_cuts = {
+    "fatJet1Pt": [310, 9999],
+    "fatJet2Pt": [310, 9999],
+    "fatJet1Pt+fatJet2Pt": [350, 9999],
+    "fatJet1MassSD": [105, 135],
+    "fatJet1PNetXbb": [0.985, 9999],
+    "fatJet2PNetXbb": [0.985, 9999],
+    "fatJet2MassSD": [105, 135],
+}
+
+hh4bm2cf, hh4b_mass2_cuts_evts = cutflow_func(hh4b_mass2_cuts)
+
+
+cut_labels = ['Jet1 pT > 310',
+                'Jet2 pT > 310',
+                'At least 1 jet pT > 350',
+                'Jet1 MassSD > 105',
+                'Jet1 MassSD < 135',
+                'Jet1 PNetXbb > 0.985',
+                'Jet2 PNetXbb > 0.985',
+                'Jet2 MassSD > 105',
+                'Jet2 MassSD < 135',
+            ]
+
+del(hh4bm2cf['HHbbWW4q'])
+
+cftable = cftable_func(hh4bm2cf, hh4b_mass2_cuts, cut_labels)
+cftable
+
+cftable.to_csv('hh4b_cutflow_3.csv')
+
+
+# mass sidebands
+
+mass_sb1 = {
+    "fatJet2MassSD": [90, 105],
+}
+
+hh4b_msb1_cf = cutflow_func(mass_sb1, hh4b_cuts_evts)[0]
+hh4b_msb1_cf
+
+
+mass_sb1 = {
+    "fatJet2MassSD": [90, 105],
+}
+
+hh4b_msb1_cf = cutflow_func(mass_sb1, hh4b_cuts_evts)[0]
+hh4b_msb1_cf
+
+mass_sb2 = {
+    "fatJet2MassSD": [135, 150],
+}
+
+hh4b_msb2_cf = cutflow_func(mass_sb2, hh4b_cuts_evts)[0]
+hh4b_msb2_cf
+
+
+
+
+
+hh4b_cuts_evts['HH4b']
+
+
+
+
+
+
+
+
+
+#
+# fatjet_vars = ["Pt", "MassSD"]
+# var_names = ["pt", "msoftdrop"]
+#
+#
+# pnetxbb = ak.pad_none(hh4b_samples[:]['FatJet_ParticleNetMD_probXbb'], 2, axis=1)[:, :2][~ak.is_none(hh4bfjpt[:, 1])]
+# jet1_bb_leading = pnetxbb[:, 0] > pnetxbb[:, 1]
+#
+# ak_dict =   {
+#                 "fatJet1PNetXbb": pnetxbb[:, 0] * jet1_bb_leading + pnetxbb[:, 1] * ~jet1_bb_leading,
+#                 "fatJet2PNetXbb": pnetxbb[:, 0] * ~jet1_bb_leading + pnetxbb[:, 1] * jet1_bb_leading,
+#                 "weight": np.ones(len(pnetxbb)) * RUN2LUMI * XSECHHBBBB / 372000,
+#             }
+#
+# for var, name in zip(fatjet_vars, var_names):
+#     evts = ak.pad_none(hh4b_samples[:]['FatJet_' + name], 2, axis=1)[:, :2][~ak.is_none(hh4bfjpt[:, 1])]
+#     ak_dict["fatJet1" + var] = evts[:, 0] * jet1_bb_leading + evts[:, 1] * ~jet1_bb_leading
+#     ak_dict["fatJet2" + var] = evts[:, 0] * ~jet1_bb_leading + evts[:, 1] * jet1_bb_leading
+#
+# ak_dict
+# hh4b_events_bb_sorted = ak.zip(ak_dict)
+# hh4b_events_bb_sorted
+#
+
+
+hh4b_kin_var_cuts = {
+    "fatJet1Pt": [310, 9999],
+    "fatJet2Pt": [310, 9999],
+    "fatJet1Pt+fatJet2Pt": [350, 9999],
+    "fatJet1MassSD": [105, 135],
+    # "fatJet2MassSD": [50, 150],
+    # "fatJet1PNetXbb": [0.985, 9999],
+    # "fatJet1PNetXbb": [0.985, 9999],
+    # "fatJet2DeepAK8MD_H4qvsQCD": [0.9, 9999],
+}
+
+
+hh4b_kincf, events_hh4b_kin_cuts = cutflow_func(hh4b_kin_var_cuts)
+cftable = cftable_func(hh4b_kincf, hh4b_kin_var_cuts)
+cftable
+
+
+#
+# s = 'hh4b'
+# cuts = []
+# for var, brange in hh4b_kin_var_cuts.items():
+#     cuts.append(hh4b_events_bb_sorted[var] > brange[0])
+#     cuts.append(hh4b_events_bb_sorted[var] < brange[1])
+#
+# cuts.append((hh4b_events_bb_sorted['fatJet1Pt'] > 350) + (hh4b_events_bb_sorted['fatJet2Pt'] > 350))
+# cut = cuts[0]
+# # hh4bcf[s] = []
+# for i in np.arange(1, len(cuts)):
+#     # hh4bcf[s].append(np.sum(evts[cut].weight))
+#     cut = cut * cuts[i]
+#
+# # hh4bcf[s].append(np.sum(evts[cut].weight))
+#
+# events_hh4b_kin_cuts[s] = hh4b_events_bb_sorted[cut]
+#
+# hh4b_kincf
+
+
+
+
+
+
+events_bbs_kin_cuts
+
+var = "tagger2d_cut"
+hists[var] = hist.Hist("Events",
+                                hist.Cat("sample", "Sample"),
+                                hist.Bin("jet1bb", r"Jet1 Tagger Score", 20, 0.9, 1),
+                                hist.Bin("jet2WW", r"Jet2 Tagger Score", 20, 0.9, 1),
+                                )
+
+
+for s, evts in evtDict.items():
+    if s != 'QCD' and s != 'HH4V':
+        hists[var].fill(sample=s,
+                             jet1bb = events_bbs_kin_cuts[s]["fatJet1PNetXbb"],
+                             jet2WW = events_bbs_kin_cuts[s]["fatJet2DeepAK8MD_H4qvsQCD"],
+                             weight = events_bbs_kin_cuts[s]["weight"],
+                            )
+
+s = 'QCD'
+hists[var].fill(sample='QCD bb1 vs WW2 tagger',
+                             jet1bb = events_bbs_kin_cuts[s]["fatJet1PNetXbb"],
+                             jet2WW = events_bbs_kin_cuts[s]["fatJet2DeepAK8MD_H4qvsQCD"],
+                             weight = events_bbs_kin_cuts[s]["weight"],
+                            )
+
+hists[var].fill(sample='QCD bb1 vs bb2 tagger',
+                             jet1bb = events_bbs_kin_cuts[s]["fatJet1PNetXbb"],
+                             jet2WW = events_bbs_kin_cuts[s]["fatJet2PNetXbb"],
+                             weight = events_bbs_kin_cuts[s]["weight"],
+                            )
+
+
+# s = 'hh4b'
+# hists[var].fill(sample='HH4b',
+#                  jet1bb = ak.to_numpy(events_hh4b_cuts[s]["fatJet1PNetXbb"]),
+#                  jet2WW = ak.to_numpy(events_hh4b_cuts[s]["fatJet2PNetXbb"]),
+#                  weight = ak.to_numpy(events_hh4b_cuts[s]["weight"]),
+#                 )
+
+patch_opts = {
+    'cmap': 'jet',
+    'vmin': 0,
+    'vmax': 100,
+}
+
+# titles = ['HH4b', 'HHbbWW4q', 'QCD', 'tt']
+titles = [['QCD bb1 vs WW2 tagger', 'QCD bb1 vs bb2 tagger'], ['HHbbWW4q', 'tt']]
+fig, axs = plt.subplots(2, 2, figsize=(2 * 9, 2 * 9))
+for i in range(2):
+    if i == 1: del patch_opts['vmax']
+    for j in range(2):
+        hist.plot2d(hists[var][titles[i][j]].sum('sample'), 'jet1bb', ax=axs[i][j], patch_opts=patch_opts)
+        axs[i][j].set_title(titles[i][j])
+
+plt.tight_layout(pad=2)
+plt.savefig("figs/tagger_2d_cut.pdf", bbox_inches='tight')
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Tagger Plots/ROC Curves
 
 init_hists("PNetXbb_alt", "Particle Net Xbb", disc_bin, fatJet=True)
 fill_hists(vars, fatJet=True, scale=False, hh4v=False)
@@ -704,7 +1742,6 @@ plt.savefig("figs/jet_bb_sep_pxbb_roc.pdf", bbox_inches='tight')
 plt.show()
 
 
-
 for j in range(2):
     jk = 'jet' + str(j + 1)
     tpr_aves = (disc_vals[jk]['tpr'][:-1] + disc_vals[jk]['tpr'][1:]) / 2
@@ -721,6 +1758,36 @@ plt.tight_layout(0.5)
 plt.savefig("figs/jet_pxbb_sep_roc_semilog.pdf", bbox_inches='tight')
 plt.show()
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Invariant Mass Calc
 
 
 masses = {}
@@ -755,1352 +1822,3 @@ hist.plot1d(hists["jets_mass"][2:].project("sample", "jet12"), overlay='sample',
 plt.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
 plt.ylim(0, ylim)
 plt.savefig("figs/jets_inv_mass.pdf", bbox_inches='tight')
-
-
-
-
-
-
-
-
-events_bb_sorted = {}
-fatjet_vars = ["Pt", "MassSD", "DeepAK8MD_H4qvsQCD"]
-
-for s, evts in evtDict.items():
-    if s != "HH4V":
-        pnet_key = "PNetXbb_alt" if s == "HHbbWW4q" else "PNetXbb"
-        jet1_bb_leading = evts["fatJet1" + pnet_key] > evts["fatJet2" + pnet_key]
-
-        ak_dict =   {
-                        "fatJet1PNetXbb": evts["fatJet1" + pnet_key] * jet1_bb_leading + evts["fatJet2" + pnet_key] * ~jet1_bb_leading,
-                        "fatJet2PNetXbb": evts["fatJet1" + pnet_key] * ~jet1_bb_leading + evts["fatJet2" + pnet_key] * jet1_bb_leading,
-                        "weight": weights[s],
-                    }
-
-        for var in fatjet_vars:
-            ak_dict["fatJet1" + var] = evts["fatJet1" + var] * jet1_bb_leading + evts["fatJet2" + var] * ~jet1_bb_leading
-            ak_dict["fatJet2" + var] = evts["fatJet1" + var] * ~jet1_bb_leading + evts["fatJet2" + var] * jet1_bb_leading
-
-        events_bb_sorted[s] = ak.zip(ak_dict)
-
-
-events_bb_sorted
-
-plt.hist(events_bb_sorted['HH4b']['fatJet1PNetXbb'], np.linspace(0, 1, 101))
-
-events_bb_sorted['HHbbWW4q']['fatJet1PNetXbb']
-
-vars = ["Pt", "MassSD"]
-varsl = ["$p_T$ (GeV)", "Soft Drop Mass (GeV)"]
-bins = [[50, 250, 600], [50, 30, 200]]
-init_hists(vars, varsl, bins, fatJet=True, name="bb_sorted", bbsorted=True)
-fill_hists(copy(vars), fatJet=True, scale=True, name="bb_sorted", pevtDict=events_bb_sorted)
-plot_hists(vars, "jet_kin_bb_leading", bins, name="bb_sorted", hh4v=False, sepsig=False)
-
-
-init_hists("DeepAK8MD_H4qvsQCD", "DeepAK8MD H4q vs QCD Score", [100, 0, 1], fatJet=True, name="bb_sorted", bbsorted=True)
-fill_hists("DeepAK8MD_H4qvsQCD", fatJet=True, scale=True, name="bb_sorted", pevtDict=events_bb_sorted)
-plot_hists("DeepAK8MD_H4qvsQCD", "jet_deepak8mdh4q_bb_leading", [100, 0, 1], name="bb_sorted", hh4v=False, sepsig=False)
-
-init_hists("PNetXbb", "ParticleNet Xbb Tagger Score", [100, 0, 1], fatJet=True, name="bb_sorted", bbsorted=True)
-fill_hists("PNetXbb", fatJet=True, scale=True, name="bb_sorted", pevtDict=events_bb_sorted)
-plot_hists("PNetXbb", "jet_pnetxbb_bb_leading", [100, 0, 1], name="bb_sorted", hh4v=False, sepsig=False)
-
-kin_cuts = {
-    "fatJet1Pt": [300, 9999],
-    "fatJet2Pt": [300, 9999],
-    "fatJet1MassSD": [75, 150],
-    "fatJet2MassSD": [50, 150],
-}
-
-events_bbs_kin_cuts = {}
-cutflow = {}
-
-for s, evts in events_bb_sorted.items():
-    cuts = []
-    for var, brange in kin_cuts.items():
-        cuts.append(evts[var] > brange[0])
-        cuts.append(evts[var] < brange[1])
-
-    cut = cuts[0]
-    cutflow[s] = []
-    for i in np.arange(1, len(cuts)):
-        cutflow[s].append(np.sum(evts[cut].weight))
-        cut = cut * cuts[i]
-
-    cutflow[s].append(np.sum(evts[cut].weight))
-
-    events_bbs_kin_cuts[s] = evts[cut]
-
-cutflow
-
-var_cuts = {
-    "fatJet1Pt": [300, 9999],
-    "fatJet2Pt": [300, 9999],
-    "fatJet1MassSD": [75, 150],
-    "fatJet2MassSD": [50, 150],
-    "fatJet1PNetXbb": [0.99, 9999],
-    "fatJet2DeepAK8MD_H4qvsQCD": [0.9, 9999],
-}
-
-events_bbs_cuts = {}
-cutflow = {}
-
-for s, evts in events_bb_sorted.items():
-    cuts = []
-    for var, brange in var_cuts.items():
-        cuts.append(evts[var] > brange[0])
-        cuts.append(evts[var] < brange[1])
-
-    cut = cuts[0]
-    cutflow[s] = []
-    for i in np.arange(1, len(cuts)):
-        cutflow[s].append(np.sum(evts[cut].weight))
-        cut = cut * cuts[i]
-
-    cutflow[s].append(np.sum(evts[cut].weight))
-
-    events_bbs_cuts[s] = evts[cut]
-
-
-cutflow
-
-cut_labels = ['Jet1 pT > 300',
-                'Jet2 pT > 300',
-                'Jet1 MassSD > 75',
-                'Jet1 MassSD < 150',
-                'Jet1 MassSD > 50',
-                'Jet1 MassSD < 150',
-                'Jet1 PNetXbb > 0.99',
-                'Jet2 DeepAK8H4qvsQCD > 0.9',
-            ]
-cut_idx = [0, 2, 4, 5, 6, 7, 8, 10]
-cftable = pandas.DataFrame(np.round(np.array(list(cutflow.values()))[:, cut_idx], 2), list(cutflow.keys()), cut_labels)
-cftable
-
-cutflow['data'][-1] / (cutflow['tt'][-1] + cutflow['QCD'][-1])
-
-
-var_cuts = {
-    "fatJet1Pt": [300, 9999],
-    "fatJet2Pt": [300, 9999],
-    "fatJet1MassSD": [75, 150],
-    "fatJet2MassSD": [150, 9999],
-    # "fatJet1PNetXbb": [0, 0.99],
-    # "fatJet2DeepAK8MD_H4qvsQCD": [0, 0.9],
-}
-
-# events_bbs_cuts_control = {}
-cutflow_control = {}
-
-for s, evts in events_bb_sorted.items():
-    cuts = []
-    for var, brange in var_cuts.items():
-        cuts.append(evts[var] > brange[0])
-        cuts.append(evts[var] < brange[1])
-
-    cut = cuts[0]
-    cutflow_control[s] = []
-    for i in np.arange(1, len(cuts)):
-        cutflow_control[s].append(np.sum(evts[cut].weight))
-        cut = cut * cuts[i]
-
-    cutflow_control[s].append(np.sum(evts[cut].weight))
-
-    # events_bbs_cuts[s] = evts[cut]
-
-cutflow_control
-
-cftable = pandas.DataFrame(np.round(np.array(list(cutflow_control.values())), 2), list(cutflow.keys()))
-cftable
-
-
-cutflow_control['data'][-1] / (cutflow_control['tt'][-1] + cutflow_control['QCD'][-1])
-
-
-
-
-
-
-
-
-
-events_bbs_cuts['HHbbWW4q']['fatJet2MassSD']
-
-hists['bb_sorted_cutMassSD'].project('sample', 'jet2').values()
-
-var = "MassSD"
-varl = "Soft Drop Mass (GeV)"
-bins =  [10, 50, 150]
-init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sorted_cut", bbsorted=True)
-fill_hists(var, fatJet=True, scale=False, name="bb_sorted_cut", pevtDict=events_bbs_cuts, useEDWeights=True)
-plot_hists(var, "jet_cuts_masssd", bins, name="bb_sorted_cut", hh4v=False, sepsig=False, lumilabel=True, stackall=True)
-
-
-
-
-var = {
-    "HHbbWW4q": "PNetXbb_alt",
-    "QCD": "PNetXbb",
-    "tt": "PNetXbb",
-}
-var = "PNetXbb"
-varl = "PNetXbb Score"
-bins =  [50, 0.9, 1]
-init_hists("PNetXbb", varl, bins, scale=False, fatJet=True, name="bb_sorted_cut", bbsorted=True)
-fill_hists(var, fatJet=True, scale=False, name="bb_sorted_cut", pevtDict=events_bbs_kin_cuts, useEDWeights=True)
-plot_hists(var, "jet_cut_pnet", bins, name="bb_sorted_cut", hh4v=False, sepsig=False, stackall=True, log=False)
-
-
-init_hists("DeepAK8MD_H4qvsQCD", "DeepAK8MD H4q vs QCD", [100, 0, 1], fatJet=True, name="bb_sorted_cut", bbsorted=True)
-fill_hists("DeepAK8MD_H4qvsQCD", fatJet=True, scale=True, name="bb_sorted", pevtDict=events_bbs_kin_cuts, useEDWeights=True)
-plot_hists("DeepAK8MD_H4qvsQCD", "jet_cut_deepak8mdh4q_bb_leading", [100, 0, 1], name="bb_sorted", hh4v=False, sepsig=False)
-
-events_bbs_kin_cuts
-
-np.sum(events_bbs_kin_cuts["HHbbWW4q"].weight)
-np.sum(events_bbs_kin_cuts["QCD"].weight) + np.sum(events_bbs_kin_cuts["tt"].weight)
-
-
-yields = {"sig": [], "bg": []}
-for pnetcutoff in np.arange(0.95, 1, 0.01):
-    sig = np.sum(events_bbs_kin_cuts["HHbbWW4q"][(events_bbs_kin_cuts["HHbbWW4q"]["fatJet1PNetXbb"] > pnetcutoff)].weight)
-    bg = np.sum(events_bbs_kin_cuts["QCD"][(events_bbs_kin_cuts["QCD"]["fatJet1PNetXbb"] > pnetcutoff)].weight) + np.sum(events_bbs_kin_cuts["tt"][(events_bbs_kin_cuts["tt"]["fatJet1PNetXbb"] > pnetcutoff)].weight)
-    yields["sig"].append(sig)
-    yields["bg"].append(bg)
-
-
-yields
-
-yields = {"sig": [], "bg": []}
-for pnetcutoff in np.arange(0.95, 1, 0.01)[:-1]:
-    sigy = []
-    bgy = []
-    for dakcutoff in np.arange(0.6, 1, 0.05):
-        cuts = {}
-        for s, evts in events_bbs_kin_cuts.items():
-            cuts[s] = (evts["fatJet1PNetXbb"] > pnetcutoff) * (evts["fatJet2DeepAK8MD_H4qvsQCD"] > dakcutoff)
-
-        sig = np.sum(events_bbs_kin_cuts["HHbbWW4q"][cuts["HHbbWW4q"]].weight)
-        bg = np.sum(events_bbs_kin_cuts["QCD"][cuts["QCD"]].weight) + np.sum(events_bbs_kin_cuts["tt"][cuts["tt"]].weight)
-        sigy.append(sig)
-        bgy.append(bg)
-
-    yields["sig"].append(sigy)
-    yields["bg"].append(bgy)
-
-
-
-np.array(yields["sig"])
-np.array(yields["bg"])
-
-plt.plot(np.array(yields["sig"]))
-
-
-non_mass_cuts = {
-    "fatJet1Pt": [300, 9999],
-    "fatJet2Pt": [300, 9999],
-    "fatJet1MassSD": [40, 9999],
-    "fatJet2MassSD": [40, 9999],
-    "fatJet1PNetXbb": [0.99, 9999],
-}
-
-events_bbs_nm_cuts = {}
-
-for s, evts in events_bb_sorted.items():
-    cuts = []
-    for var, brange in kin_cuts.items():
-        if var == "fatJet1PNetXbb" and "HH" in s: var = "fatJet1PNetXbb_alt"
-        cuts.append(evts[var] > brange[0])
-        cuts.append(evts[var] < brange[1])
-
-    cut = cuts[0]
-    for i in np.arange(1, len(cuts)):
-        cut = cut * cuts[i]
-
-    events_bbs_nm_cuts[s] = evts[cut]
-
-
-
-del range
-var = "MassSD"
-varl = "Soft Drop Mass (GeV)"
-bins =  [50, 40, 500]
-init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sorted_nm_cut", bbsorted=True)
-fill_hists(var, fatJet=True, scale=False, name="bb_sorted_nm_cut", pevtDict=events_bbs_nm_cuts)
-plot_hists(var, "jet_nm_cut_no_stack", bins, name="bb_sorted_nm_cut", hh4v=False, sepsig=False, log=True, lumilabel=True)
-
-
-
-
-ak.pad_none(hh4b_samples[:]['weight'], 1, axis=1)[:, :2]
-ak.sum(hh4b_samples['weight'])
-
-
-XSECHHBBBB
-RUN2LUMI * XSECHHBBBB
-
-len(pnetxbb) * RUN2LUMI * XSECHHBBBB / 372000
-len(pnetxbb) / 372000
-
-
-fatjet_vars = ["Pt", "MassSD"]
-var_names = ["pt", "msoftdrop"]
-
-
-pnetxbb = ak.pad_none(hh4b_samples[:]['FatJet_ParticleNetMD_probXbb'], 2, axis=1)[:, :2][~ak.is_none(hh4bfjpt[:, 1])]
-jet1_bb_leading = pnetxbb[:, 0] > pnetxbb[:, 1]
-
-ak_dict =   {
-                "fatJet1PNetXbb": pnetxbb[:, 0] * jet1_bb_leading + pnetxbb[:, 1] * ~jet1_bb_leading,
-                "fatJet2PNetXbb": pnetxbb[:, 0] * ~jet1_bb_leading + pnetxbb[:, 1] * jet1_bb_leading,
-                "weight": np.ones(len(pnetxbb)) * RUN2LUMI * XSECHHBBBB / 372000,
-            }
-
-for var, name in zip(fatjet_vars, var_names):
-    evts = ak.pad_none(hh4b_samples[:]['FatJet_' + name], 2, axis=1)[:, :2][~ak.is_none(hh4bfjpt[:, 1])]
-    ak_dict["fatJet1" + var] = evts[:, 0] * jet1_bb_leading + evts[:, 1] * ~jet1_bb_leading
-    ak_dict["fatJet2" + var] = evts[:, 0] * ~jet1_bb_leading + evts[:, 1] * jet1_bb_leading
-
-ak_dict
-hh4b_events_bb_sorted = ak.zip(ak_dict)
-hh4b_events_bb_sorted
-
-hh4b_kin_var_cuts = {
-    "fatJet1Pt": [310, 9999],
-    "fatJet2Pt": [310, 9999],
-    "fatJet1MassSD": [105, 135],
-    # "fatJet2MassSD": [50, 150],
-    # "fatJet1PNetXbb": [0.985, 9999],
-    # "fatJet1PNetXbb": [0.985, 9999],
-    # "fatJet2DeepAK8MD_H4qvsQCD": [0.9, 9999],
-}
-
-events_hh4b_kin_cuts = {}
-hh4b_kincf = {}
-
-for s, evts in events_bb_sorted.items():
-    cuts = []
-    for var, brange in hh4b_kin_var_cuts.items():
-        cuts.append(evts[var] > brange[0])
-        cuts.append(evts[var] < brange[1])
-
-    cuts.append((evts['fatJet1Pt'] > 350) + (evts['fatJet2Pt'] > 350))
-
-    cut = cuts[0]
-    hh4b_kincf[s] = []
-    for i in np.arange(1, len(cuts)):
-        hh4b_kincf[s].append(np.sum(evts[cut].weight))
-        cut = cut * cuts[i]
-
-    hh4b_kincf[s].append(np.sum(evts[cut].weight))
-
-    events_hh4b_kin_cuts[s] = evts[cut]
-
-s = 'hh4b'
-cuts = []
-for var, brange in hh4b_kin_var_cuts.items():
-    cuts.append(hh4b_events_bb_sorted[var] > brange[0])
-    cuts.append(hh4b_events_bb_sorted[var] < brange[1])
-
-cuts.append((hh4b_events_bb_sorted['fatJet1Pt'] > 350) + (hh4b_events_bb_sorted['fatJet2Pt'] > 350))
-cut = cuts[0]
-# hh4bcf[s] = []
-for i in np.arange(1, len(cuts)):
-    # hh4bcf[s].append(np.sum(evts[cut].weight))
-    cut = cut * cuts[i]
-
-# hh4bcf[s].append(np.sum(evts[cut].weight))
-
-events_hh4b_kin_cuts[s] = hh4b_events_bb_sorted[cut]
-
-hh4b_kincf
-
-
-hh4b_var_cuts = {
-    "fatJet1Pt": [310, 9999],
-    "fatJet2Pt": [310, 9999],
-    "fatJet1MassSD": [105, 135],
-    # "fatJet2MassSD": [50, 150],
-    "fatJet1PNetXbb": [0.985, 9999],
-    "fatJet2PNetXbb": [0.985, 9999],
-    # "fatJet2DeepAK8MD_H4qvsQCD": [0.9, 9999],
-}
-
-events_hh4b_cuts = {}
-hh4bcf = {}
-
-for s, evts in events_bb_sorted.items():
-    cuts = []
-    for var, brange in hh4b_var_cuts.items():
-        cuts.append(evts[var] > brange[0])
-        cuts.append(evts[var] < brange[1])
-        if var == "fatJet2Pt":
-            cuts.append((evts['fatJet1Pt'] > 350) + (evts['fatJet2Pt'] > 350))
-
-
-
-    cut = cuts[0]
-    hh4bcf[s] = []
-    for i in np.arange(1, len(cuts)):
-        hh4bcf[s].append(np.sum(evts[cut].weight))
-        cut = cut * cuts[i]
-
-    hh4bcf[s].append(np.sum(evts[cut].weight))
-
-    events_hh4b_cuts[s] = evts[cut]
-
-
-
-cut_labels = ['Jet1 pT > 310',
-                'Jet2 pT > 310',
-                'At least 1 jet pT > 350',
-                'Jet1 MassSD > 105',
-                'Jet1 MassSD < 135',
-                'Jet1 PNetXbb > 0.985',
-                'Jet2 PNetXbb > 0.985',
-            ]
-
-del(hh4bcf['HHbbWW4q'])
-cut_idx = [0, 2, 4, 5, 6, 7, 9]
-
-np.round(np.array(list(hh4bcf.values()))[:, cut_idx], 1)
-
-cftable = pandas.DataFrame(np.round(np.array(list(hh4bcf.values()))[:, cut_idx], 2), list(hh4bcf.keys()), cut_labels)
-cftable
-
-
-cftable.to_csv('hh4b2_cutflow.csv')
-
-
-np.sum(events_hh4b_cuts['hh4b']['weight'])
-np.sum(events_hh4b_kin_cuts['hh4b']['weight'])
-
-
-
-NOT_NONE = 94068
-NOT_NONE_EVTS = 94068 * (RUN2LUMI * XSECHHBBBB) / 372000
-
-XSECHHBBBB
-
-NOT_NONE_EVTS
-
-np.sum(events_hh4b_cuts['hh4b']['weight'])
-np.sum(hh4b_events_bb_sorted['weight'])
-(np.sum(events_hh4b_cuts['QCD']['weight']) + np.sum(events_hh4b_cuts['tt']['weight']))
-(np.sum(events_hh4b_kin_cuts['QCD']['weight']) + np.sum(events_hh4b_kin_cuts['tt']['weight']))
-
-
-
-
-events_bb_sorted['HHbbWW4q']['fatJet1PNetXbb']
-
-
-
-
-
-
-
-events_bbs_kin_cuts
-
-var = "tagger2d_cut"
-hists[var] = hist.Hist("Events",
-                                hist.Cat("sample", "Sample"),
-                                hist.Bin("jet1bb", r"Jet1 Tagger Score", 20, 0.8, 1),
-                                hist.Bin("jet2WW", r"Jet2 Tagger Score", 20, 0.8, 1),
-                                )
-
-
-
-
-for s, evts in evtDict.items():
-    if s != 'QCD' and s != 'HH4V':
-        hists[var].fill(sample=s,
-                             jet1bb = events_bbs_kin_cuts[s]["fatJet1PNetXbb"],
-                             jet2WW = events_bbs_kin_cuts[s]["fatJet2DeepAK8MD_H4qvsQCD"],
-                             weight = events_bbs_kin_cuts[s]["weight"],
-                            )
-
-s = 'QCD'
-hists[var].fill(sample='QCD bb1 vs WW2 tagger',
-                             jet1bb = events_bbs_kin_cuts[s]["fatJet1PNetXbb"],
-                             jet2WW = events_bbs_kin_cuts[s]["fatJet2DeepAK8MD_H4qvsQCD"],
-                             weight = events_bbs_kin_cuts[s]["weight"],
-                            )
-
-hists[var].fill(sample='QCD bb1 vs bb2 tagger',
-                             jet1bb = events_bbs_kin_cuts[s]["fatJet1PNetXbb"],
-                             jet2WW = events_bbs_kin_cuts[s]["fatJet2PNetXbb"],
-                             weight = events_bbs_kin_cuts[s]["weight"],
-                            )
-
-
-events_hh4b_cuts['hh4b']["weight"]
-s = 'hh4b'
-hists[var].fill(sample='HH4b',
-                 jet1bb = ak.to_numpy(events_hh4b_cuts[s]["fatJet1PNetXbb"]),
-                 jet2WW = ak.to_numpy(events_hh4b_cuts[s]["fatJet2PNetXbb"]),
-                 weight = ak.to_numpy(events_hh4b_cuts[s]["weight"]),
-                )
-
-hists[var][2:3].project('sample').values().keys()
-
-patch_opts = {
-    'cmap': 'jet',
-    'vmin': 0,
-    # 'vmax': 5,
-}
-
-# titles = ['HH4b', 'HHbbWW4q', 'QCD', 'tt']
-titles = ['HHbbWW4q', 'QCD bb1 vs WW2 tagger', 'QCD bb1 vs bb2 tagger', 'tt']
-fig, axs = plt.subplots(1, 4, figsize=(4 * 9, 9))
-for j in range(4):
-    hist.plot2d(hists[var][j:j + 1].sum('sample'), 'jet1bb', ax=axs[j], patch_opts=patch_opts)
-    axs[j].set_title(titles[j])
-
-plt.tight_layout(pad=3)
-plt.savefig("figs/tagger_2d_cut_q.pdf", bbox_inches='tight')
-plt.show()
-
-
-
-
-
-d
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-np.sum(weights["HHbbWW4q"])
-np.sum(weights["QCD"])
-np.sum(weights["tt"])
-np.sum(weights["QCD"]) + np.sum(weights["tt"])
-
-
-
-events = {}
-for s, evts in evtDict.items():
-    if s != "HH4V":
-        key = "PNetXbb_alt" if "HH" in s else "PNetXbb"
-        events[s] = ak.zip({
-                                "fatJet1Pt": evts["fatJet1Pt"],
-                                "fatJet2Pt": evts["fatJet2Pt"],
-                                "fatJet1MassSD": evts["fatJet1MassSD"],
-                                "fatJet2MassSD": evts["fatJet2MassSD"],
-                                "fatJet1PNetXbb": evts["fatJet1" + key],
-                                "fatJet2PNetXbb": evts["fatJet2" + key],
-                                "weight": weights[s],
-                             })
-
-
-jet1ptmincut = 350
-jet2ptmincut = 300
-jet1masssdmincut = 100
-jet1masssdmaxcut = 150
-jet2masssdmincut = 90
-# jet2masssdmaxcut = 150
-
-events_kin_cuts = {}
-
-events_kin_cuts
-
-for s, evts in events.items():
-    cut = (evts["fatJet1Pt"] > jet1ptmincut) * \
-          (evts["fatJet2Pt"] > jet2ptmincut) * \
-          (evts["fatJet1MassSD"] > jet1masssdmincut) * \
-          (evts["fatJet1MassSD"] < jet1masssdmaxcut) * \
-          (evts["fatJet2MassSD"] > jet1masssdmincut)
-
-    events_kin_cuts[s] = evts[cut]
-
-yields = {"sig": [], "bg": []}
-for cutoff in np.arange(0, 1, 0.5):
-    sig = np.sum(events_kin_cuts["HHbbWW4q"][(events_kin_cuts["HHbbWW4q"]["fatJet1PNetXbb"] > cutoff) + (events_kin_cuts["HHbbWW4q"]["fatJet2PNetXbb"] > cutoff)].weight)
-    bg = np.sum(events_kin_cuts["QCD"][(events_kin_cuts["QCD"]["fatJet1PNetXbb"] > cutoff) + (events_kin_cuts["QCD"]["fatJet2PNetXbb"] > cutoff)].weight) + np.sum(events_kin_cuts["tt"][(events_kin_cuts["tt"]["fatJet1PNetXbb"] > cutoff) + (events_kin_cuts["tt"]["fatJet2PNetXbb"] > cutoff)].weight)
-    yields["sig"].append(sig)
-    yields["bg"].append(bg)
-
-np.sum(weights["HHbbWW4q"])
-np.sum(weights["QCD"])
-np.sum(weights["tt"])
-np.sum(weights["QCD"]) + np.sum(weights["tt"])
-
-
-yields
-
-
-yields
-
-
-
-
-for cutoff in np.arange(0.9, 1, 0.005):
-    sig = np.sum(pnetxbbs["HHbbWW4q"][pnetxbbs["HHbbWW4q"]["fatJet1PNetXbb"] > cutoff ].weight)
-    bg = np.sum(pnetxbbs["QCD"][pnetxbbs["QCD"]["fatJet1PNetXbb"] > cutoff].weight) + np.sum(pnetxbbs["tt"][pnetxbbs["tt"]["fatJet1PNetXbb"] > cutoff].weight)
-    yields["jet1xbb"].append(sig / np.sqrt(sig ** 2 + bg ** 2))
-
-    sig = np.sum(pnetxbbs["HHbbWW4q"][pnetxbbs["HHbbWW4q"]["fatJet2PNetXbb"] > cutoff].weight)
-    bg = np.sum(pnetxbbs["QCD"][pnetxbbs["QCD"]["fatJet2PNetXbb"] > cutoff].weight) + np.sum(pnetxbbs["tt"][pnetxbbs["tt"]["fatJet2PNetXbb"] > cutoff].weight)
-    yields["jet2xbb"].append(sig / np.sqrt(sig ** 2 + bg ** 2))
-
-    sig = np.sum(pnetxbbs["HHbbWW4q"][(pnetxbbs["HHbbWW4q"]["fatJet1PNetXbb"] > cutoff) + (pnetxbbs["HHbbWW4q"]["fatJet2PNetXbb"] > cutoff)].weight)
-    bg = np.sum(pnetxbbs["QCD"][(pnetxbbs["QCD"]["fatJet1PNetXbb"] > cutoff) + (pnetxbbs["QCD"]["fatJet2PNetXbb"] > cutoff)].weight) + np.sum(pnetxbbs["tt"][(pnetxbbs["tt"]["fatJet1PNetXbb"] > cutoff) + (pnetxbbs["tt"]["fatJet2PNetXbb"] > cutoff)].weight)
-    yields["jet12xbb"].append(sig / np.sqrt(sig ** 2 + bg ** 2))
-
-yields
-
-disc_vals['jet1']['bg'].append(fatJet1WXbb)
-disc_vals['jet2']['bg'].append(fatJet2WXbb)
-disc_vals['jet1']['sig'].append(fatJet1bXbb)
-disc_vals['jet2']['sig'].append(fatJet2bXbb)
-
-for i in range(2):
-    jk = 'jet' + str(i + 1)
-    disc_vals[jk]['sig'] = np.sum(np.array(disc_vals[jk]['sig']), axis=0)
-    disc_vals[jk]['bg'] = np.sum(np.array(disc_vals[jk]['bg']), axis=0)
-    disc_vals[jk]['tpr'] = np.cumsum(disc_vals[jk]['sig'][::-1])[::-1] / np.sum(np.array(disc_vals[jk]['sig']))
-    disc_vals[jk]['fpr'] = np.cumsum(disc_vals[jk]['bg'][::-1])[::-1] / np.sum(np.array(disc_vals[jk]['bg']))
-    disc_vals[jk]['tpr'] = np.append(disc_vals[jk]['tpr'], 0)
-    disc_vals[jk]['fpr'] = np.append(disc_vals[jk]['fpr'], 0)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-disc_var = 'DeepAK8MD_H4qvsQCD'
-disc_var_label = 'DeepAK8MD_H4qvsQCD'
-disc_var_bins = [100, -1, 1]
-
-
-
-var = 'PNetXbb'
-hists["jet" + var] = hist.Hist("Events",
-                                hist.Cat("sample", "Sample"),
-                                hist.Bin("jet1", r"Leading Jet " + var, 100, 0, 1),
-                                hist.Bin("jet2", r"Sub-Leading Jet " + var, 100, 0, 1),
-                                hist.Bin("jet3", r"3rd-Leading Jet " + var, 100, 0, 1)
-                                )
-
-for s, evts in evtDict.items():
-    if s != 'HH4V':
-        if 'HH' in s:
-            hists["jet" + var].fill(sample=s,
-                                 jet1 = evts["fatJet1PNetXbb_alt"],
-                                 jet2 = evts["fatJet2PNetXbb_alt"],
-                                 jet3 = evts["fatJet3PNetXbb_alt"],
-                                 weight = evts["totalWeight"],  # weight is a reserved keyword in Hist, and can be added to any fill() call
-                                )
-        else:
-            hists["jet" + var].fill(sample=s,
-                                 jet1 = evts["fatJet1" + var],
-                                 jet2 = evts["fatJet2" + var],
-                                 jet3 = evts["fatJet3" + var],
-                                 weight = evts["totalWeight"],  # weight is a reserved keyword in Hist, and can be added to any fill() call
-                                )
-
-hists['jet' + var].scale(scale, axis='sample')
-
-fig, axs = plt.subplots(1, 3, figsize=(27, 9))
-
-for j in range(3):
-    ylim = np.max(list(hists["jet" + var].project("sample", "jet" + str(j + 1)).values().values())) * 1.1
-    axs[j].set_prop_cycle(cycler(color=colors_cycle))
-    hist.plot1d(hists["jet" + var][:2].project("sample", "jet" + str(j + 1)), overlay='sample', ax=axs[j], clear=False, line_opts=line_opts)
-    axs[j].set_prop_cycle(cycler(color=colors_cycle[2:]))
-    ax = hist.plot1d(hists["jet" + var][2:].project("sample", "jet" + str(j + 1)), overlay='sample', ax=axs[j], stack=True, clear=False, fill_opts=fill_opts)
-    axs[j].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-    axs[j].set_ylim(0, ylim)
-    # axs[i, j].ticklabel_format(axis='x', style='sci')
-plt.tight_layout(0.5)
-
-plt.tight_layout(0.5)
-plt.savefig("figs/jet_pxbb.pdf", bbox_inches='tight')
-plt.show()
-
-
-#
-# disc_vars = ['DeepAK8H', 'DeepAK8H4qMD', 'PNetXbb']
-# disc_vars_labels = ['DeepAK8H', 'DeepAK8H4qMD', 'PNetXbb']
-# disc_bins = [[100, -0.1, 0.1], [100, -0.1, 0.1], [100, -1, 1]]
-
-
-disc_vars = ['DeepAK8_H', 'DeepAK8MD_H4qvsQCD']
-disc_vars_labels = ['DeepAK8_H', 'DeepAK8MD_H4qvsQCD']
-disc_bins = [[100, 0, 1], [100, 0, 1]]
-
-
-for i in range(len(disc_vars)):
-    var = disc_vars[i]
-    varl = disc_vars_labels[i]
-    hists["jet" + var] = hist.Hist("Events",
-                                    hist.Cat("sample", "Sample"),
-                                    hist.Bin("jet1", r"Leading Jet " + varl, disc_bins[i][0], disc_bins[i][1], disc_bins[i][2]),
-                                    hist.Bin("jet2", r"Sub-Leading Jet " + varl, disc_bins[i][0], disc_bins[i][1], disc_bins[i][2]),
-                                    hist.Bin("jet3", r"3rd-Leading Jet " + varl, disc_bins[i][0], disc_bins[i][1], disc_bins[i][2])
-                                    )
-
-for s, evts in evtDict.items():
-    # if s == 'HH4V':
-    #     for i in range(len(disc_vars)):
-    #         var = disc_vars[i]
-    #         hists["jet" + var].fill(sample=s,
-    #                              jet1 = evts["fatJet1" + var],
-    #                              jet2 = evts["fatJet2" + var],
-    #                              jet3 = evts["fatJet3" + var],
-    #                              # weight = evts["totalWeight"],  # weight is a reserved keyword in Hist, and can be added to any fill() call
-    #                             )
-    # else:
-    if s != 'HH4V':
-        # print(evts["totalWeight"][:10])
-        for i in range(len(disc_vars)):
-            var = disc_vars[i]
-            hists["jet" + var].fill(sample=s,
-                                 jet1 = evts["fatJet1" + var],
-                                 jet2 = evts["fatJet2" + var],
-                                 jet3 = evts["fatJet3" + var],
-                                 weight = evts["totalWeight"],  # weight is a reserved keyword in Hist, and can be added to any fill() call
-                                )
-
-
-for var in disc_vars:
-    hists['jet' + var].scale(scale, axis='sample')
-
-
-
-
-for i in range(len(disc_vars)):
-    var = disc_vars[i]
-    for j in range(3):
-        ylim = np.max(list(hists["jet" + var].project("sample", "jet" + str(j + 1)).values().values())) * 1.1
-        axs[i, j].set_prop_cycle(cycler(color=colors_cycle))
-        hist.plot1d(hists["jet" + var][:2].project("sample", "jet" + str(j + 1)), overlay='sample', ax=axs[i, j], clear=False, line_opts=line_opts)
-        axs[i, j].set_prop_cycle(cycler(color=colors_cycle[2:]))
-        ax = hist.plot1d(hists["jet" + var][2:].project("sample", "jet" + str(j + 1)), overlay='sample', ax=axs[i, j], stack=True, clear=False, fill_opts=fill_opts)
-        axs[i, j].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-        axs[i, j].set_ylim(0, ylim)
-
-plt.tight_layout(0.5)
-plt.savefig("figs/jet_disc_vars_weighted.pdf", bbox_inches='tight')
-plt.show()
-
-# fig, axs = plt.subplots(1, 3, figsize=(28, len(disc_vars) * 9))
-# plt.ticklabel_format(axis='x', scilimits=(0, 0), useMathText=True, style='sci')
-# # axs.set_prop_cycle(cycler(color=colors))
-# # for i in range(len(disc_vars)):
-# var = disc_vars[i]
-# for j in range(3):
-#     axs[j].set_prop_cycle(cycler(color=colors_cycle))
-#     hist.plot1d(hists["jet" + var][:2].project("sample", "jet" + str(j + 1)), overlay='sample', ax=axs[j], clear=False, line_opts=line_opts)
-#     axs[j].set_prop_cycle(cycler(color=colors_cycle[2:]))
-#     ax = hist.plot1d(hists["jet" + var][2:].project("sample", "jet" + str(j + 1)), overlay='sample', ax=axs[j], stack=True, clear=False, fill_opts=fill_opts)
-#     axs[j].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-#     # axs[i, j].ticklabel_format(axis='x', style='sci')
-# plt.tight_layout(0.5)
-#
-# plt.ticklabel_format(axis='x', scilimits=(0, 0), useMathText=True, style='sci')
-# plt.savefig("figs/jet_disc_vars_weighted.pdf", bbox_inches='tight')
-# plt.show()
-
-colors1 = ['#e31a1c', '#a6cee3', '#1f78b4']
-colors2 = ['#a6cee3', '#1f78b4']
-
-fig, axs = plt.subplots(len(disc_vars), 3, figsize=(28, len(disc_vars) * 9))
-for i in range(len(disc_vars)):
-    var = disc_vars[i]
-    for j in range(3):
-        ylim = np.max(list(hists["jet" + var].project("sample", "jet" + str(j + 1)).values().values())) * 1.1
-        axs[i, j].set_prop_cycle(cycler(color=colors_cycle))
-        hist.plot1d(hists["jet" + var][:2].project("sample", "jet" + str(j + 1)), overlay='sample', ax=axs[i, j], clear=False, line_opts=line_opts)
-        axs[i, j].set_prop_cycle(cycler(color=colors_cycle[2:]))
-        ax = hist.plot1d(hists["jet" + var][2:].project("sample", "jet" + str(j + 1)), overlay='sample', ax=axs[i, j], stack=True, clear=False, fill_opts=fill_opts)
-        axs[i, j].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-        axs[i, j].set_ylim(0, ylim)
-
-plt.tight_layout(0.5)
-plt.savefig("figs/jet_disc_vars_weighted.pdf", bbox_inches='tight')
-plt.show()
-
-disc_vals = {}
-disc_vars = ["PNetXbb"]
-
-for var in disc_vars:
-    disc_vals[var] = {}
-    for i in range(3):
-        jk = 'jet' + str(i + 1)
-        disc_vals[var][jk] = {'sig': [], 'bg': []}
-        for s in evtDict.keys():
-            if s != 'HH4V':
-                if 'HH' in s:
-                    disc_vals[var][jk]['sig'].append(hists['jet' + var].project("sample", jk).values()[(s, )])
-                else:
-                    disc_vals[var][jk]['bg'].append(hists['jet' + var].project("sample", jk).values()[(s, )])
-
-        disc_vals[var][jk]['sig'] = np.sum(np.array(disc_vals[var][jk]['sig']), axis=0)
-        disc_vals[var][jk]['bg'] = np.sum(np.array(disc_vals[var][jk]['bg']), axis=0)
-        disc_vals[var][jk]['tpr'] = np.cumsum(disc_vals[var][jk]['sig'][::-1])[::-1] / np.sum(np.array(disc_vals[var][jk]['sig']))
-        disc_vals[var][jk]['fpr'] = np.cumsum(disc_vals[var][jk]['bg'][::-1])[::-1] / np.sum(np.array(disc_vals[var][jk]['bg']))
-        disc_vals[var][jk]['tpr'] = np.append(disc_vals[var][jk]['tpr'], 0)
-        disc_vals[var][jk]['fpr'] = np.append(disc_vals[var][jk]['fpr'], 0)
-
-
-disc_vals[var][jk]['tpr'][:-1]  disc_vals[var][jk]['tpr'][1:]
-(disc_vals[var][jk]['fpr'][:-1] - disc_vals[var][jk]['fpr'][1:]) / 2
-
-
-
-
-for j in range(3):
-    jk = 'jet' + str(j + 1)
-    tpr_aves = (disc_vals[var][jk]['tpr'][:-1] + disc_vals[var][jk]['tpr'][1:]) / 2
-    fpr_diffs = (disc_vals[var][jk]['fpr'][:-1] - disc_vals[var][jk]['fpr'][1:])
-    auc = np.sum(tpr_aves * fpr_diffs)
-    plt.plot(disc_vals[var][jk]['fpr'], disc_vals[var][jk]['tpr'], label='Fat Jet {} AUC = {:.2f}'.format(j + 1, auc))
-
-plt.title(var + ' ROC Curve')
-plt.xlabel('FPR')
-plt.ylabel('TPR')
-plt.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-
-plt.tight_layout(0.5)
-plt.ticklabel_format(axis='x', scilimits=(0, 0), useMathText=True, style='sci')
-plt.savefig("figs/jet_pxbb_roc.pdf", bbox_inches='tight')
-plt.show()
-
-
-
-for j in range(3):
-    jk = 'jet' + str(j + 1)
-    tpr_aves = (disc_vals[var][jk]['tpr'][:-1] + disc_vals[var][jk]['tpr'][1:]) / 2
-    fpr_diffs = (disc_vals[var][jk]['fpr'][:-1] - disc_vals[var][jk]['fpr'][1:])
-    auc = np.sum(tpr_aves * fpr_diffs)
-    plt.semilogx(disc_vals[var][jk]['fpr'], disc_vals[var][jk]['tpr'], label='Fat Jet {} AUC = {:.2f}'.format(j + 1, auc))
-
-plt.title(var + ' ROC Curve')
-plt.xlabel('FPR')
-plt.ylabel('TPR')
-plt.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-
-plt.tight_layout(0.5)
-plt.savefig("figs/jet_pxbb_roc_semilog.pdf", bbox_inches='tight')
-plt.show()
-
-
-
-fig, axs = plt.subplots(len(disc_vars), 3, figsize=(28, len(disc_vars) * 9))
-
-for i in range(len(disc_vars)):
-    var = disc_vars[i]
-    for j in range(3):
-        jk = 'jet' + str(i + 1)
-        axs[i, j].plot(disc_vals[var][jk]['fpr'], disc_vals[var][jk]['tpr'])
-        axs[i, j].set_title('Fat Jet {} {}'.format(j + 1, var))
-        axs[i, j].set_xlabel('FPR')
-        axs[i, j].set_ylabel('TPR')
-
-plt.tight_layout(0.5)
-plt.ticklabel_format(axis='x', scilimits=(0, 0), useMathText=True, style='sci')
-plt.savefig("figs/jet_disc_vars_roc.pdf", bbox_inches='tight')
-plt.show()
-
-
-fig, axs = plt.subplots(1, len(disc_vars), figsize=(len(disc_vars) * 9, 9))
-
-for i in range(len(disc_vars)):
-    var = disc_vars[i]
-    for j in range(3):
-        jk = 'jet' + str(j + 1)
-        auc = np.sum(disc_vals[var][jk]['tpr']) / 100
-        axs[i].plot(disc_vals[var][jk]['fpr'], disc_vals[var][jk]['tpr'], label='Fat Jet {} AUC = {:.2f}'.format(j + 1, auc))
-
-    axs[i].set_title(var + ' ROC Curve')
-    axs[i].set_xlabel('FPR')
-    axs[i].set_ylabel('TPR')
-    axs[i].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-
-plt.tight_layout(0.5)
-plt.ticklabel_format(axis='x', scilimits=(0, 0), useMathText=True, style='sci')
-plt.savefig("figs/jet_disc_vars_roc2.pdf", bbox_inches='tight')
-plt.show()
-
-
-
-
-fig, axs = plt.subplots(1, len(disc_vars), figsize=(len(disc_vars) * 9, 9))
-
-for i in range(len(disc_vars)):
-    var = disc_vars[i]
-    for j in range(3):
-        jk = 'jet' + str(j + 1)
-        auc = np.sum(disc_vals[var][jk]['tpr']) / 100
-        axs[i].semilogx(disc_vals[var][jk]['fpr'], disc_vals[var][jk]['tpr'], label='Fat Jet {} AUC = {:.2f}'.format(j + 1, auc))
-
-    axs[i].set_title(var + ' ROC Curve')
-    axs[i].set_xlabel('FPR')
-    axs[i].set_ylabel('TPR')
-    axs[i].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-
-plt.tight_layout(0.5)
-plt.savefig("figs/jet_disc_vars_logx.pdf", bbox_inches='tight')
-plt.show()
-
-
-
-
-
-jk = 'jet1'
-for i in range(len(disc_vars)):
-    var = disc_vars[i]
-    auc = np.sum(vals[var][jk]['tpr']) / 100
-    plt.plot(vals[var][jk]['fpr'], vals[var][jk]['tpr'], label='{} AUC = {:.2f}'.format(var, auc))
-
-plt.title('ROC Curves')
-plt.xlabel('FPR')
-plt.ylabel('TPR')
-plt.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-
-plt.tight_layout(0.5)
-plt.savefig("figs/jet_disc_vars_roc3.pdf", bbox_inches='tight')
-plt.show()
-
-
-vals[var][jk]['tpr']
-
-
-vals[var][jk]['fpr']
-
-np.cumsum(vals[var][jk]['sig'][::-1])[::-1]
-
-np.sum(vals[var][jk]['sig'])
-
-len(vals[var][jk]['sig'])
-
-
-
-roc_vals = {}
-
-for var in disc_vars:
-    roc_vals[var] = {}
-    for i in range(3):
-        jk = 'jet' + str(i + 1)
-        roc_vals[var][jk] = {'tpr': [], 'fpr': []}
-        cumsum = np.cumsum(vals[var][jk]['sig'])
-        tot = np.sum(vals[var][jk]['sig'])
-
-        roc_vals[var][jk]['tpr'] = cumsum / tot
-
-        cumsum = np.cumsum(vals[var][jk]['bg'])
-        cumsumr = vals[var][jk]['bg'][::-1].cumsum()[::-1]
-
-        for j in range(len(vals[var][jk]['sig'])):
-
-            vals[var][jk]['tpr'].append(vals[var][jk]['sig'] / (vals[var][jk]['sig'] + np.sum(vals[var][jk]['sig'][j]))
-
-        vals[var][jk]['tpr'] = vals[var][jk]['sig'] / (vals[var][jk]['sig'] + vals[var][jk]['bg'])
-
-            vals[var][jk]['sig'].append(hists['jet' + var].project("sample", jk).values()[(s, )])
-        else:
-            vals[var][jk]['bg'].append(hists['jet' + var].project("sample", jk).values()[(s, )])
-
-        vals[var][jk]['sig'] = np.sum(np.array(vals[var][jk]['sig']), axis=0)
-        vals[var][jk]['bg'] = np.sum(np.array(vals[var][jk]['bg']), axis=0)
-
-
-
-
-np.sum(np.array(vals[disc_vars[0]]['jet3']['sig']), axis=0)
-
-
-vals = hists['jetDeepAK8_H'].project("sample", "jet1").values()
-vals
-
-
-
-massfns = listdir('data/mass/')
-massfns
-
-for i in range(len(massfns)):
-    massfns[i] = 'data/mass/' + massfns[i]
-
-mass_dict = {
-    "HH4V": np.load('data/mass/HHToVVVV_node_SM_Pt300_1pb_weighted.root_inv_mass.npy'),
-    "HHbbWW4q": np.load('data/mass/HHToBBVVToBBQQQQ_node_SM_1pb_weighted.root_inv_mass.npy'),
-}
-
-
-for fn in massfns:
-    if "QCD" in fn:
-        if "QCD" not in mass_dict: mass_dict["QCD"] = np.load(fn)
-        else: mass_dict["QCD"] = np.concatenate((mass_dict["QCD"], np.load(fn)), axis=1)
-    elif "TT" in fn:
-        if "tt" not in mass_dict: mass_dict["tt"] = np.load(fn)
-        else: mass_dict["tt"] = np.concatenate((mass_dict["tt"], np.load(fn)), axis=1)
-
-
-hists["jets_mass"] = hist.Hist("Events",
-                                hist.Cat("sample", "Sample"),
-                                hist.Bin("jet12", r"Leading 2 Jets' Invariant Mass (GeV)", 100, 0, 5000),
-                                )
-
-for s in evtDict.keys():
-    if s == 'HH4V':
-        hists["jets_mass"].fill(sample=s,
-                             jet12 = mass_dict[s][0],
-                             )
-    else:
-        hists["jets_mass"].fill(sample=s,
-                             jet12 = mass_dict[s][0],
-                             weight = evtDict[s]["weight"]
-                             )
-
-len(mass_dict["QCD"][0])
-evtDict["QCD"]["fatJet1Pt"]
-
-
-tot_events_mass = {}
-vals = hists['jets_mass'].project("sample", "jet12").values()
-for s in evtDict.keys():
-    tot_events_mass[s] = np.sum(vals[(s,)])
-
-scale_mass = {'HH4V': 1 / tot_events_mass['HH4V'],
-        'HHbbWW4q': 1 / tot_events_mass['HHbbWW4q'],
-        'QCD': 1 / (tot_events_mass['QCD'] + tot_events_mass['tt']),
-        'tt': 1 / (tot_events_mass['QCD'] + tot_events_mass['tt'])}
-
-
-
-hists['jets_mass'].scale(scale_mass, axis='sample')
-
-plt.gca().set_prop_cycle(cycler(color=colors_cycle))
-ylim = np.max(list(hists["jets_mass"].project("sample", "jet12").values().values())) * 1.1
-hist.plot1d(hists["jets_mass"][:2].project("sample", "jet12"), overlay='sample', clear=False, line_opts=line_opts)
-plt.gca().set_prop_cycle(cycler(color=colors_cycle[2:]))
-hist.plot1d(hists["jets_mass"][2:].project("sample", "jet12"), overlay='sample', stack=True, clear=False, fill_opts=fill_opts)
-plt.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-plt.ylim(0, ylim)
-plt.savefig("figs/jets_mass.pdf", bbox_inches='tight')
-
-
-
-
-
-for i in range(len(kin_vars)):
-    var = kin_vars[i]
-    varl = kin_vars_labels[i]
-    hists["jet" + var] = hist.Hist("Events",
-                                    hist.Cat("sample", "Sample"),
-                                    hist.Bin("jet1", r"Leading Jet " + varl, kin_bins[i][0], kin_bins[i][1], kin_bins[i][2]),
-                                    hist.Bin("jet2", r"Sub-Leading Jet " + varl, kin_bins[i][0], kin_bins[i][1], kin_bins[i][2]),
-                                    hist.Bin("jet3", r"3rd-Leading Jet " + varl, kin_bins[i][0], kin_bins[i][1], kin_bins[i][2])
-                                    )
-
-for s, evts in evtDict.items():
-    if s == 'HH4V':
-        for i in range(len(kin_vars)):
-            var = kin_vars[i]
-            hists["jet" + var].fill(sample=s,
-                                 jet1 = evts["fatJet1" + var],
-                                 jet2 = evts["fatJet2" + var],
-                                 jet3 = evts["fatJet3" + var],
-                                 # weight = evts["totalWeight"],  # weight is a reserved keyword in Hist, and can be added to any fill() call
-                                )
-    else:
-        for i in range(len(kin_vars)):
-            var = kin_vars[i]
-            hists["jet" + var].fill(sample=s,
-                                 jet1 = evts["fatJet1" + var],
-                                 jet2 = evts["fatJet2" + var],
-                                 jet3 = evts["fatJet3" + var],
-                                 weight = evts["totalWeight"],  # weight is a reserved keyword in Hist, and can be added to any fill() call
-                                )
-
-
-
-
-tot_events = {}
-vals = hists['jetPt'].project("sample", "jet1").values()
-for s in evtDict.keys():
-    tot_events[s] = np.sum(vals[(s,)])
-
-tot_events
-
-
-hists["met"] = hist.Hist("Events",
-                                hist.Cat("sample", "Sample"),
-                                hist.Bin("met", r"MET (GeV)", 100, 0, 500),
-                                )
-
-
-for s, evts in evtDict.items():
-    if s == 'HH4V':
-        hists["met"].fill(sample=s,
-                             met = evts["MET"],
-                             # weight = evts["totalWeight"],  # weight is a reserved keyword in Hist, and can be added to any fill() call
-                            )
-    else:
-        hists["met"].fill(sample=s,
-                             met = evts["MET"],
-                             weight = evts["totalWeight"],  # weight is a reserved keyword in Hist, and can be added to any fill() call
-                            )
-
-
-tot_events_met = {}
-vals = hists['met'].project("sample", "met").values()
-for s in evtDict.keys():
-    tot_events_met[s] = np.sum(vals[(s,)])
-
-
-scale_met = {'HH4V': 1 / tot_events_met['HH4V'],
-    'HHbbWW4q': 1 / tot_events_met['HHbbWW4q'],
-    'QCD': 1 / (tot_events_met['QCD'] + tot_events_met['tt']),
-    'tt': 1 / (tot_events_met['QCD'] + tot_events_met['tt'])}
-
-
-hists['met'].scale(scale_met, axis='sample')
-
-plt.gca().set_prop_cycle(cycler(color=colors_cycle))
-ylim = np.max(list(hists["met"].project("sample", "met").values().values())) * 1.1
-hist.plot1d(hists["met"][:2].project("sample", "met"), overlay='sample', clear=False, line_opts=line_opts)
-plt.gca().set_prop_cycle(cycler(color=colors_cycle[2:]))
-hist.plot1d(hists["met"][2:].project("sample", "met"), overlay='sample', stack=True, clear=False, fill_opts=fill_opts)
-plt.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-plt.ylim(0, ylim)
-plt.savefig("figs/met.pdf", bbox_inches='tight')
-
-
-
-hists["genhiggs"] = hist.Hist("Events",
-                                hist.Cat("sample", "Sample"),
-                                hist.Bin("genHiggs1", r"Gen Higgs 1 $p_T$ (GeV)", 100, 0, 1200),
-                                hist.Bin("genHiggs2", r"Gen Higgs 2 $p_T$ (GeV)", 100, 0, 1200),
-                                )
-
-
-for s, evts in evtDict.items():
-    if s == 'HH4V':
-        hists["genhiggs"].fill(sample=s,
-                             genHiggs1 = evts["genHiggs1Pt"],
-                             genHiggs2 = evts["genHiggs2Pt"],
-                             # weight = evts["totalWeight"],  # weight is a reserved keyword in Hist, and can be added to any fill() call
-                            )
-    elif 'HH' in s:
-        hists["genhiggs"].fill(sample=s,
-                             genHiggs1 = evts["genHiggs1Pt"],
-                             genHiggs2 = evts["genHiggs2Pt"],
-                             weight = evts["totalWeight"],  # weight is a reserved keyword in Hist, and can be added to any fill() call
-                            )
-
-
-hists['genhiggs'].scale(scale, axis='sample')
-
-
-fig, axs = plt.subplots(1, 2, figsize=(18, 9))
-# axs.set_prop_cycle(cycler(color=colors))
-
-axs[0].set_prop_cycle(cycler(color=colors_cycle))
-hist.plot1d(hists["genhiggs"].project("sample", "genHiggs1"), overlay='sample', ax=axs[0], clear=False, line_opts=line_opts)
-axs[0].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-
-axs[1].set_prop_cycle(cycler(color=colors_cycle))
-hist.plot1d(hists["genhiggs"].project("sample", "genHiggs2"), overlay='sample', ax=axs[1], clear=False, line_opts=line_opts)
-axs[1].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-    # axs[i].ticklabel_format(axis='x', style='sci')
-plt.tight_layout(0.5)
-plt.savefig("figs/genhiggspt.pdf", bbox_inches='tight')
-
-
-
-plt.gca().set_prop_cycle(cycler(color=colors_cycle))
-ylim = np.max(list(hists["met"].project("sample", "met").values().values())) * 1.1
-hist.plot1d(hists["met"][:2].project("sample", "met"), overlay='sample', clear=False, line_opts=line_opts)
-plt.gca().set_prop_cycle(cycler(color=colors_cycle[2:]))
-hist.plot1d(hists["met"][2:].project("sample", "met"), overlay='sample', stack=True, clear=False, fill_opts=fill_opts)
-plt.legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-plt.ylim(0, ylim)
-plt.savefig("figs/met.pdf", bbox_inches='tight')
-
-
-
-
-
-
-
-genhh12mass = {}
-for s, evts in evtDict.items():
-    genhh12mass[s] = []
-    if "HH" in s:
-        for i in tqdm(range(len(evtDict[s]["fatJet1Pt"]))):
-            higgs1 = LorentzVector()
-            higgs1.setptetaphim(evts["genHiggs1Pt"][i], evts["genHiggs1Eta"][i], evts["genHiggs1Phi"][i], 125.1)
-            higgs2 = LorentzVector()
-            higgs2.setptetaphim(evts["genHiggs2Pt"][i], evts["genHiggs2Eta"][i], evts["genHiggs2Phi"][i], 125.1)
-
-            genhh12mass[s].append((higgs1 + higgs2).mass)
-
-
-
-
-plt.hist(genhh12mass["HH4V"], bins=np.linspace(40, 4000, 101))
-
-
-genhh_vars = ['pt', 'mass']
-genhh_vars_labels = [r'$p_T$', 'Mass']
-bins = [[100, 0, 2000], [100, 200, 4000]]
-
-
-for i in range(len(genhh_vars)):
-    var = genhh_vars[i]
-    varl = genhh_vars_labels[i]
-    hists["hh" + var] = hist.Hist("Events",
-                                    hist.Cat("sample", "Sample"),
-                                    hist.Bin('hh', r"Gen HH " + varl, bins[i][0], bins[i][1], bins[i][2]),
-                                    )
-
-
-for s, evts in evtDict.items():
-    if "HH" in s:
-        for i in range(len(genhh_vars)):
-            var = genhh_vars[i]
-            hists["hh" + var].fill(sample=s,
-                                 hh = evts["genHH_" + var],
-                                 )
-
-for var in genhh_vars:
-    hists['hh' + var].scale(scale, axis='sample')
-
-fig, axs = plt.subplots(1, len(genhh_vars), figsize=(len(genhh_vars) * 9, 9))
-# axs.set_prop_cycle(cycler(color=colors))
-for i in range(len(genhh_vars)):
-    var = genhh_vars[i]
-    axs[i].set_prop_cycle(cycler(color=colors_cycle))
-    hist.plot1d(hists["hh" + var], overlay='sample', ax=axs[i], clear=False, line_opts=line_opts)
-    axs[i].legend(fancybox=True, shadow=True, frameon=True, prop={'size': 16})
-    # axs[i].ticklabel_format(axis='x', style='sci')
-plt.tight_layout(0.5)
-
-# plt.ticklabel_format(axis='x', scilimits=(0, 0), useMathText=True, style='sci')
-plt.savefig("figs/genhh_vars.pdf", bbox_inches='tight')
-plt.show()
