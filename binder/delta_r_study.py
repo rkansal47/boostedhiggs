@@ -767,3 +767,83 @@ rax.set_ylim(0, 1)
 rax.grid(which='both')
 plt.savefig('figs/deltarql3.pdf', bbox_inches='tight')
 plt.show()
+
+
+# HH4V
+
+h1W1q = (evtDict["HH4V"]['genHiggs1W1Decay'] == 1)
+h1W2q = (evtDict["HH4V"]['genHiggs1W2Decay'] == 1)
+h2W1q = (evtDict["HH4V"]['genHiggs2W1Decay'] == 1)
+h2W2q = (evtDict["HH4V"]['genHiggs2W2Decay'] == 1)
+
+h1W1l = (evtDict["HH4V"]['genHiggs1W1Decay'] > 1) * (evtDict["HH4V"]['genHiggs1W1Decay'] < 5)
+h1W2l = (evtDict["HH4V"]['genHiggs1W2Decay'] > 1) * (evtDict["HH4V"]['genHiggs1W2Decay'] < 5)
+h2W1l = (evtDict["HH4V"]['genHiggs2W1Decay'] > 1) * (evtDict["HH4V"]['genHiggs2W1Decay'] < 5)
+h2W2l = (evtDict["HH4V"]['genHiggs2W2Decay'] > 1) * (evtDict["HH4V"]['genHiggs2W2Decay'] < 5)
+
+hh8q = h1W1q * h1W2q * h2W1q * h2W2q
+hh4q4l = (h1W1q * h1W2q * h2W1l * h2W2l) + \
+        (h2W1q * h2W2q * h1W1l * h1W2l) + \
+        (h1W1l * h1W2l * h2W1l * h2W2l) + \
+        (h2W1q * h2W2q * h1W1l * h1W2l) + \
+        (h2W1q * h2W2q * h1W1l * h1W2l) + \
+        (h2W1q * h2W2q * h1W1l * h1W2l) + \
+
+hh8l = h1W1l * h1W2l * h2W1l * h2W2l
+
+ak.sum(hh8q) / len(evtDict["HH4V"]['weight'])
+ak.sum(hh4q4l)
+ak.sum(hh8l) / len(evtDict["HH4V"]['weight'])
+
+tothh8q = ak.sum(hh8q)
+
+hh8q
+
+
+key_dict = {'pt': 'Pt', 'eta': 'Eta', 'phi': 'Phi'}
+
+
+def get_vec(var, mass):
+    dict1 = {}
+    dict2 = {}
+    for key, val in key_dict.items():
+        dict1[key] = evtDict["HH4V"]['genHiggs1' + var + val]
+        dict2[key] = evtDict["HH4V"]['genHiggs2' + var + val]
+    dict1['mass'] = np.ones(len(evtDict["HH4V"]['genHiggs1' + var + val])) * mass
+    dict2['mass'] = np.ones(len(evtDict["HH4V"]['genHiggs2' + var + val])) * mass
+
+    return (ak.zip(dict1, with_name="PtEtaPhiMLorentzVector"), ak.zip(dict2, with_name="PtEtaPhiMLorentzVector"))
+
+
+hvec = get_vec('', 125.1)
+W1vec = get_vec('W1', 80.379)
+W2vec = get_vec('W2', 80.379)
+W1q1vec = get_vec('W1dau1', 0)
+W1q2vec = get_vec('W1dau2', 0)
+W2q1vec = get_vec('W2dau1', 0)
+W2q2vec = get_vec('W2dau2', 0)
+
+
+fatjet14q = (hvec[0].delta_r(W1q1vec[0]) < testr) * (hvec[0].delta_r(W1q2vec[0]) < testr) * (hvec[0].delta_r(W2q1vec[0]) < testr) * (hvec[0].delta_r(W2q2vec[0]) < testr)
+fatjet24q = (hvec[1].delta_r(W1q1vec[1]) < testr) * (hvec[1].delta_r(W1q2vec[1]) < testr) * (hvec[1].delta_r(W2q1vec[1]) < testr) * (hvec[1].delta_r(W2q2vec[1]) < testr)
+ak.sum(fatjet14q[hh8q]) / tothh8q
+ak.sum(fatjet24q[hh8q]) / tothh8q
+
+ak.sum(fatjet14q[hh8q] * fatjet24q[hh8q]) / tothh8q
+
+evtDict["HH4V"]["fatJet14q"] = fatjet14q
+evtDict["HH4V"]["fatJet24q"] = fatjet24q
+
+
+ak.sum((hvec[0].delta_r(W1q1vec[0]) < testr) * (hvec[0].delta_r(W1q2vec[0]) < testr) * (hvec[0].delta_r(W2q1vec[0]) < testr) * (hvec[0].delta_r(W2q2vec[0]) < testr)) / totW
+
+
+evtDict["HH4V"]["genHiggs2W2Decay"][hh8q]
+
+plt.hist(ak.to_numpy(evtDict["HH4V"]["fatJet1DeepAK8MD_H4qvsQCD"][hh8q]), bins=np.linspace(0, 1, 101), histtype='step')
+plt.hist(ak.to_numpy(evtDict["HH4V"]["fatJet2DeepAK8MD_H4qvsQCD"][hh8q]), bins=np.linspace(0, 1, 101), histtype='step')
+evtDict["HH4V"]["fatJet2DeepAK8MD_H4qvsQCD"][hh8q]
+
+ak.sum(h1W1l + h1W1q)
+
+totW = ak.sum(h1W) + ak.sum(h2W)
