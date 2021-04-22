@@ -1,6 +1,8 @@
 import uproot4
 import awkward1 as ak
 
+import pickle
+
 %matplotlib inline
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -9,17 +11,19 @@ import mplhep as hep
 from matplotlib.patches import Rectangle
 
 import coffea.hist as hist
+import coffea
+from coffea.lookup_tools import extractor
+from coffea.nanoevents.methods.vector import PtEtaPhiELorentzVector
 
 import numpy as np
 from cycler import cycler
-
-# from skhep.math.vectors import LorentzVector
-from coffea.nanoevents.methods.vector import PtEtaPhiELorentzVector
 
 from tqdm import tqdm
 import pandas
 
 import re
+
+import math
 
 from os import listdir
 from copy import copy, deepcopy
@@ -30,7 +34,7 @@ plt.style.use(hep.style.ROOT)
 
 
 samples = {
-    "HH4V": "data/new/pnet_h4q/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8_1pb_weighted.root",
+    # "HH4V": "data/new/pnet_h4q/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8_1pb_weighted.root",
     "HHbbVV4q": 'data/new/pnet_h4q/HHToBBVVToBBQQQQ_cHHH1_1pb_weighted.root',
     "QCD": "data/new/pnet_h4q/QCD_HT*.root",
     "tt": "data/new/pnet_h4q/TTTo*.root",
@@ -90,7 +94,7 @@ LUMI = LUMI17
 weights = {}
 
 weights["data"] = np.ones(len(data17))
-weights["HH4V"] = evtDict["HH4V"]["totalWeight"] * LUMI * XSECHH4V * ACCEPTANCE
+# weights["HH4V"] = evtDict["HH4V"]["totalWeight"] * LUMI * XSECHH4V * ACCEPTANCE
 weights["QCD"] = evtDict["QCD"]["totalWeight"] * LUMI * QCD_MC_SF
 weights["tt"] = evtDict["tt"]["totalWeight"] * LUMI
 weights["HHbbVV4q"] = evtDict["HHbbVV4q"]["totalWeight"] * LUMI * XSECHHBBVV4Q
@@ -101,7 +105,7 @@ weights["HHbbVV4q"] = evtDict["HHbbVV4q"]["totalWeight"] * LUMI * XSECHHBBVV4Q
 ak.sum(weights["QCD"])
 # ak.sum(weights["HH4b"])
 ak.sum(weights["HHbbVV4q"])
-ak.sum(weights["HH4V"])
+# ak.sum(weights["HH4V"])
 ak.sum(weights["tt"])
 
 ak.sum(weights["tt"]) + ak.sum(weights["QCD"])
@@ -635,6 +639,306 @@ def tagger2d_plots(histname, ak8events, ak15events, vmaxhh=0.01, vmaxqcd=250, na
     plt.show()
 
 
+def ddttemplate(evts, ak15=False, ak815=False, eff=0.99, name=""):
+    ak15str = "ak15" if (ak15 or ak815) else ""
+    hists[ak15str + 'ddthist'] = hist.Hist("Events",
+                        hist.Cat("sample", "Sample"),
+                        hist.Bin("pt", r"$p_T$ (GeV)", 100, 250, 1000),
+                        hist.Bin("rho", r"$\rho = \ln (m_{SD}^2 / p_T^2)$", 100, -8, -0.5),
+                        hist.Bin("pnethqqqq", r"pnethqqqq", 1000, 0.8, 1),
+                        )
+
+    hists[ak15str + 'ddthist'].fill(sample='QCD',
+                         pt = evts['QCD'][ak15str + 'fatJet2Pt'],
+                         rho = np.log(evts['QCD'][ak15str + 'fatJet2MassSD'] ** 2 / evts['QCD'][ak15str + 'fatJet2Pt'] ** 2),
+                         pnethqqqq = evts['QCD'][ak15str + 'fatJet2PNetHqqqq'],
+                         weight = evts['QCD']["weight"]
+                         )
+
+    val_QCD = hists[ak15str + 'ddthist']['QCD'].values(overflow='allnan')[('QCD',)]
+    qcd_maxval_temp = np.cumsum(val_QCD, axis=2)
+    qcd_maxval = qcd_maxval_temp[:, :, -1]
+    norma = qcd_maxval_temp / np.maximum(1e-10, qcd_maxval[:, :, np.newaxis])
+
+    hist_y_QCD = deepcopy(hists[ak15str + 'ddthist'])
+    template = hist_y_QCD.sum('pnethqqqq', ) #pt, rho base
+    hist_y_QCD.clear()
+    hist_y_QCD._sumw = {():norma}
+
+    res = np.apply_along_axis(lambda norma: norma.searchsorted(eff), axis = 2, arr = norma)
+    res[res>1000]=0
+
+    #evaluation of GRU cut from quantile (trivial if GRU has 100 bins)
+    def bineval(a):
+        return hist_y_QCD.identifiers("pnethqqqq",overflow='allnan')[a].lo
+
+    binfunc = np.vectorize(bineval)
+    qmap = binfunc(res)
+
+    qmap[qmap == -math.inf] = 0.8
+    qmap
+
+    template.clear()
+    template._sumw = {():qmap}
+    template.label = 'Cut for {}% B effciency'.format(np.round((1 - eff) * 100, 1))
+
+    hist.plot2d(template.sum('sample'), xaxis = "rho", patch_opts={'vmax': 1, 'cmap': 'jet'})
+    plt.savefig("figs/{}{}{}_ddtmap.pdf".format(name, ak15str, int(eff*1000)))
+    plt.show()
+
+    coffea.util.save(template, "ddtmaps/{}{}ddtmap_{}_cut.coffea".format(name, ak15str, int(eff*1000)))
+
+
+def ddttagger(evts, ak15=False, ak815=False, eff=0.99, name=""):
+    ak15str = "ak15" if (ak15 or ak815) else ""
+    ddtmap = uproot4.open("ddtmaps/{}{}ddtmap_{}_cut.root".format(name, ak15str, int(eff*1000)))
+    print(ddtmap['h1'].values())
+
+    ext = extractor()
+    ext.add_weight_sets(["ddtmap h1 ddtmaps/{}{}ddtmap_{}_cut.root".format(name, ak15str, int(eff*1000))])
+    ext.finalize()
+    evaluator = ext.make_evaluator()
+
+    for s in evts.keys():
+        rho = np.log(evts[s][ak15str + 'fatJet2MassSD'] ** 2 / evts[s][ak15str + 'fatJet2Pt'] ** 2)
+        pnet_cut = evaluator["ddtmap"](evts[s][ak15str + "fatJet2Pt"], rho)
+        pnetddt = evts[s][ak15str + 'fatJet2PNetHqqqq'] - pnet_cut
+        evts[s] = ak.zip(dict(zip(evts[s].fields + [ak15str + 'fatJet2PNetHqqqq{}{}Eff'.format(name, int(eff*1000)), ak15str + 'fatJet2PNetHqqqq{}DDT{}'.format(name, int(eff*1000))], ak.unzip(evts[s]) + (ak.Array(pnet_cut), ak.Array(pnetddt)))))
+
+
+
+
+ddttemplate(events_bb_sorted, ak15=False, name="")
+ddttagger(events_bb_sorted, ak15=False, name="")
+
+
+ak15str =  ""
+eff = 0.99
+name = ""
+ddtmap = uproot4.open("ddtmaps/{}{}ddtmap_{}_cut.root".format("", ak15str, int(eff*1000)))
+print(ddtmap['h1'].values())
+
+ext = extractor()
+ext.add_weight_sets(["ddtmap h1 ddtmaps/{}{}ddtmap_{}_cut.root".format(name, ak15str, int(eff*1000))])
+ext.finalize()
+evaluator = ext.make_evaluator()
+
+s = "HHbbVV4q"
+rho = np.log(events_bb_sorted[s][ak15str + 'fatJet2MassSD'] ** 2 / events_bb_sorted[s][ak15str + 'fatJet2Pt'] ** 2)
+pnet_cut = evaluator["ddtmap"](events_bb_sorted[s][ak15str + "fatJet2Pt"], rho)
+
+
+
+
+plt.hist(pnet_cut)
+
+for s in evts.keys():
+    rho = np.log(evts[s][ak15str + 'fatJet2MassSD'] ** 2 / evts[s][ak15str + 'fatJet2Pt'] ** 2)
+    pnet_cut = evaluator["ddtmap"](evts[s][ak15str + "fatJet2Pt"], rho)
+    pnetddt = evts[s][ak15str + 'fatJet2PNetHqqqq'] - pnet_cut
+    evts[s] = ak.zip(dict(zip(evts[s].fields + [ak15str + 'fatJet2PNetHqqqq{}{}Eff'.format(name, int(eff*1000)), ak15str + 'fatJet2PNetHqqqq{}DDT{}'.format(name, int(eff*1000))], ak.unzip(evts[s]) + (ak.Array(pnet_cut), ak.Array(pnetddt)))))
+
+
+
+evts = events_bb_sorted
+ak15str = ""
+eff = 0.99
+hists[ak15str + 'ddthist'] = hist.Hist("Events",
+                    hist.Cat("sample", "Sample"),
+                    hist.Bin("pt", r"$p_T$ (GeV)", 100, 250, 1000),
+                    hist.Bin("rho", r"$\rho = \ln (m_{SD}^2 / p_T^2)$", 100, -8, -0.5),
+                    hist.Bin("pnethqqqqddt", r"pnethqqqqddt", 1000, -1, 1),
+                    )
+
+hists[ak15str + 'ddthist'].fill(sample='QCD',
+                     pt = evts['QCD'][ak15str + 'fatJet2Pt'],
+                     rho = np.log(evts['QCD'][ak15str + 'fatJet2MassSD'] ** 2 / evts['QCD'][ak15str + 'fatJet2Pt'] ** 2),
+                     pnethqqqqddt = evts['QCD'][ak15str + 'fatJet2PNetHqqqqDDT990'],
+                     weight = evts['QCD']["weight"]
+                     )
+
+val_QCD = hists[ak15str + 'ddthist']['QCD'].values(overflow='allnan')[('QCD',)]
+qcd_maxval_temp = np.cumsum(val_QCD, axis=2)
+qcd_maxval = qcd_maxval_temp[:, :, -1]
+norma = qcd_maxval_temp / np.maximum(1e-10, qcd_maxval[:, :, np.newaxis])
+
+hist_y_QCD = deepcopy(hists[ak15str + 'ddthist'])
+template = hist_y_QCD.sum('pnethqqqqddt', ) #pt, rho base
+hist_y_QCD.clear()
+hist_y_QCD._sumw = {():norma}
+
+res = np.apply_along_axis(lambda norma: norma.searchsorted(eff), axis = 2, arr = norma)
+res[res>1000]=0
+
+#evaluation of GRU cut from quantile (trivial if GRU has 100 bins)
+def bineval(a):
+    return hist_y_QCD.identifiers("pnethqqqqddt",overflow='allnan')[a].lo
+
+binfunc = np.vectorize(bineval)
+qmap = binfunc(res)
+
+qmap[qmap == -math.inf] = -1
+qmap
+
+template.clear()
+template._sumw = {():qmap}
+template.label = 'Cut for {}% B efficiency'.format(np.round((1 - eff) * 100, 1))
+
+hist.plot2d(template.sum('sample'), xaxis = "rho", patch_opts={'cmap': 'jet', 'vmin': -0.2})
+
+
+
+
+evts = events_bb_sorted
+ak15str = ""
+eff = 0.99
+hists[ak15str + 'ddthist'] = hist.Hist("Events",
+                    hist.Cat("sample", "Sample"),
+                    hist.Bin("pt", r"$p_T$ (GeV)", 100, 250, 1000),
+                    hist.Bin("rho", r"$\rho = \ln (m_{SD}^2 / p_T^2)$", 100, -8, -0.5),
+                    hist.Bin("pnethqqqqddt", r"pnethqqqqddt", 1000, -1, 1),
+                    )
+
+hists[ak15str + 'ddthist'].fill(sample='QCD',
+                     pt = evts['QCD'][ak15str + 'fatJet2Pt'],
+                     rho = np.log(evts['QCD'][ak15str + 'fatJet2MassSD'] ** 2 / evts['QCD'][ak15str + 'fatJet2Pt'] ** 2),
+                     pnethqqqqddt = evts['QCD'][ak15str + 'fatJet2PNetHqqqqDDT990'],
+                     weight = evts['QCD']["weight"]
+                     )
+
+val_QCD = hists[ak15str + 'ddthist']['QCD'].values(overflow='allnan')[('QCD',)]
+qcd_maxval_temp = np.cumsum(val_QCD, axis=2)
+qcd_maxval = qcd_maxval_temp[:, :, -1]
+norma = qcd_maxval_temp / np.maximum(1e-10, qcd_maxval[:, :, np.newaxis])
+
+hist_y_QCD = deepcopy(hists[ak15str + 'ddthist'])
+template = hist_y_QCD.sum('pnethqqqqddt', ) #pt, rho base
+hist_y_QCD.clear()
+hist_y_QCD._sumw = {():norma}
+
+res = np.apply_along_axis(lambda norma: norma.searchsorted(eff), axis = 2, arr = norma)
+res[res>1000]=0
+
+#evaluation of GRU cut from quantile (trivial if GRU has 100 bins)
+def bineval(a):
+    return hist_y_QCD.identifiers("pnethqqqqddt",overflow='allnan')[a].lo
+
+binfunc = np.vectorize(bineval)
+qmap = binfunc(res)
+
+qmap[qmap == -math.inf] = -1
+qmap
+
+template.clear()
+template._sumw = {():qmap}
+template.label = 'Cut for {}% B efficiency'.format(np.round((1 - eff) * 100, 1))
+
+hist.plot2d(template.sum('sample'), xaxis = "rho", patch_opts={'vmax': 1, 'cmap': 'jet'})
+
+
+
+
+
+
+evts = events_bb_sorted
+ak15str = ""
+eff = 0.99
+hists[ak15str + 'ddthist'] = hist.Hist("Events",
+                    hist.Cat("sample", "Sample"),
+                    hist.Bin("masssd", r"MassSD (GeV)", 20, 50, 250),
+                    # hist.Bin("rho", r"$\rho = \ln (m_{SD}^2 / p_T^2)$", 100, -8, -0.5),
+                    hist.Bin("pnethqqqqddt", r"pnethqqqqddt", 1000, -1, 1),
+                    )
+
+hists[ak15str + 'ddthist'].fill(sample='QCD',
+                     masssd = evts['QCD'][ak15str + 'fatJet2MassSD'],
+                     pnethqqqqddt = evts['QCD'][ak15str + 'fatJet2PNetHqqqqDDT990'],
+                     weight = evts['QCD']["weight"]
+                     )
+
+val_QCD = hists[ak15str + 'ddthist']['QCD'].values(overflow='allnan')[('QCD',)]
+qcd_maxval_temp = np.cumsum(val_QCD, axis=1)
+qcd_maxval = qcd_maxval_temp[:, -1]
+norma = qcd_maxval_temp / np.maximum(1e-10, qcd_maxval[:, np.newaxis])
+
+hist_y_QCD = deepcopy(hists[ak15str + 'ddthist'])
+hist_y_QCD.clear()
+hist_y_QCD._sumw = {():norma}
+
+hist.plot2d(hist_y_QCD.sum('sample'), xaxis="masssd", patch_opts={'cmap':'jet'})
+
+
+evts = events_bb_sorted
+ak15str = ""
+eff = 0.99
+hists[ak15str + 'ddthist'] = hist.Hist("Events",
+                    hist.Cat("sample", "Sample"),
+                    hist.Bin("masssd", r"MassSD (GeV)", 20, 50, 250),
+                    # hist.Bin("rho", r"$\rho = \ln (m_{SD}^2 / p_T^2)$", 100, -8, -0.5),
+                    hist.Bin("pnethqqqq", r"pnethqqqq", 1000, 0, 1),
+                    )
+
+hists[ak15str + 'ddthist'].fill(sample='QCD',
+                     masssd = evts['QCD'][ak15str + 'fatJet2MassSD'],
+                     pnethqqqq = evts['QCD'][ak15str + 'fatJet2PNetHqqqq'],
+                     weight = evts['QCD']["weight"]
+                     )
+
+val_QCD = hists[ak15str + 'ddthist']['QCD'].values(overflow='allnan')[('QCD',)]
+qcd_maxval_temp = np.cumsum(val_QCD, axis=1)
+qcd_maxval = qcd_maxval_temp[:, -1]
+norma = qcd_maxval_temp / np.maximum(1e-10, qcd_maxval[:, np.newaxis])
+
+hist_y_QCD = deepcopy(hists[ak15str + 'ddthist'])
+hist_y_QCD.clear()
+hist_y_QCD._sumw = {():norma}
+
+hist.plot2d(hist_y_QCD.sum('sample'), xaxis="masssd", patch_opts={'cmap':'jet'})
+
+
+res = np.apply_along_axis(lambda norma: norma.searchsorted(eff), axis = 2, arr = norma)
+res[res>1000]=0
+
+#evaluation of GRU cut from quantile (trivial if GRU has 100 bins)
+def bineval(a):
+    return hist_y_QCD.identifiers("pnethqqqqddt",overflow='allnan')[a].lo
+
+binfunc = np.vectorize(bineval)
+qmap = binfunc(res)
+
+qmap[qmap == -math.inf] = -1
+qmap
+
+template.clear()
+template._sumw = {():qmap}
+template.label = 'Cut for {}% B efficiency'.format(np.round((1 - eff) * 100, 1))
+
+hist.plot2d(template.sum('sample'), xaxis = "rho", patch_opts={'vmax': 1, 'cmap': 'jet'})
+
+
+
+
+
+
+
+plt.hist(events_bb_sorted["QCD"]["fatJet2MassSD"][events_bb_sorted["QCD"]["fatJet2PNetHqqqqDDT990"] > 0], np.linspace(115, 145, 10), weights=events_bb_sorted["QCD"]["weight"][events_bb_sorted["QCD"]["fatJet2PNetHqqqqDDT990"] > 0], histtype='step')
+plt.hist(events_bb_sorted["QCD"]["fatJet2MassSD"][events_bb_sorted["QCD"]["fatJet2PNetHqqqq"] > 0.94], np.linspace(115, 145, 10), weights=events_bb_sorted["QCD"]["weight"][events_bb_sorted["QCD"]["fatJet2PNetHqqqq"] > 0.94], histtype='step')
+
+
+# plt.savefig("figs/{}{}{}_ddtmap.pdf".format(name, ak15str, int(eff*1000)))
+plt.show()
+
+
+
+
+
+
+
+np.round((1 - 0.99) * 100, 1)
+
+ddttagger(events_bbs_ak15_cuts, ak15=True, name="NtupleCuts")
+
+
 plt.rcParams.update({'font.size': 16})
 plt.style.use(hep.style.CMS)
 
@@ -651,7 +955,8 @@ for s in evtDict.keys():
 tot_events
 
 
-scale_factor = {'HH4V': 1 / tot_events['HH4V'],
+scale_factor = {
+        # 'HH4V': 1 / tot_events['HH4V'],
         'HHbbVV4q': 1 / tot_events['HHbbVV4q'],
         # 'HH4b': 1 / tot_events['HH4b'],
         'QCD': 1 / (tot_events['QCD'] + tot_events['tt']),
@@ -753,10 +1058,14 @@ evtDict["HHbbVV4q"].fields
 
 
 events_bb_sorted = {}
-fatjet_vars = ["Pt", "MassSD", "Mass", "PNetMDXbb", "PNetHqqqq"]
+fatjet_vars = ["Pt", "MassSD", "PNetHqqqq"]
+# fatjet_vars = ["Pt", "MassSD", "Mass", "PNetMDXbb", "PNetHqqqq"]
 
 for s, evts in evtDict.items():
     if s != "HH4V" and s != 'HH4b':
+        triggered = evts[triggers17[0]]
+        for i in range(1, len(triggers17)): triggered = triggered + evts[triggers17[i]]
+
         pnet_key = "PNetXbb_alt"  # if s == "HHbbVV4q" else "PNetXbb"
         jet1_bb_leading = evts["fatJet1" + pnet_key] > evts["fatJet2" + pnet_key]
 
@@ -764,73 +1073,26 @@ for s, evts in evtDict.items():
                         "fatJet1PNetXbb": (evts["fatJet1" + pnet_key] * jet1_bb_leading + evts["fatJet2" + pnet_key] * ~jet1_bb_leading),
                         "fatJet2PNetXbb": (evts["fatJet1" + pnet_key] * ~jet1_bb_leading + evts["fatJet2" + pnet_key] * jet1_bb_leading),
                         "weight": weights[s],
+                        "triggered": triggered
                     }
 
         for var in fatjet_vars:
-            if var != "PNetMDXbb":
-                ak_dict["fatJet1" + var] = (evts["fatJet1" + var] * jet1_bb_leading + evts["fatJet2" + var] * ~jet1_bb_leading)
-                ak_dict["fatJet2" + var] = (evts["fatJet1" + var] * ~jet1_bb_leading + evts["fatJet2" + var] * jet1_bb_leading)
-            if var != "PNetHqqqq":
-                ak_dict["ak15fatJet1" + var] = (evts["ak15fatJet1" + var] * jet1_bb_leading + evts["ak15fatJet2" + var] * ~jet1_bb_leading)
-                ak_dict["ak15fatJet2" + var] = (evts["ak15fatJet1" + var] * ~jet1_bb_leading + evts["ak15fatJet2" + var] * jet1_bb_leading)
+            ak_dict["fatJet1" + var] = (evts["fatJet1" + var] * jet1_bb_leading + evts["fatJet2" + var] * ~jet1_bb_leading)
+            ak_dict["fatJet2" + var] = (evts["fatJet1" + var] * ~jet1_bb_leading + evts["fatJet2" + var] * jet1_bb_leading)
+
+        # ak_dict["fatJet2Rho"] = np.log(ak_dict['fatJet2MassSD'] ** 2 / ak_dict['fatJet2Pt'] ** 2),
 
         events_bb_sorted[s] = ak.zip(ak_dict)
 
 events_bb_sorted
 
+filehandler = open('events_bb_sorted.obj', 'wb')
+pickle.dump(events_bb_sorted, filehandler)
+filehandler.close()
 
 
-
-hists['ddthistak8'] = hist.Hist("Events",
-                    hist.Cat("sample", "Sample"),
-                    hist.Bin("pt", r"$p_T$ (GeV)", 25, 250, 1000),
-                    hist.Bin("rho", r"$\rho$", 25, -4, -0),
-                    hist.Bin("pnethqqqq", r"pnethqqqq", 1000, 0, 1),
-                    )
-
-hists['ddthistak8'].fill(sample='QCD',
-                     pt = events_bb_sorted['QCD']['fatJet2Pt'],
-                     rho = np.log(events_bb_sorted['QCD']['fatJet2Mass'] ** 2 / events_bb_sorted['QCD']['fatJet2Pt'] ** 2),
-                     pnethqqqq = events_bb_sorted['QCD']['fatJet2PNetHqqqq'],
-                     weight = events_bb_sorted['QCD']["weight"]
-                     )
-
-val_QCD = hists['ddthistak8']['QCD'].values(overflow='allnan')[('QCD',)]
-
-qcd_maxval_temp = np.cumsum(val_QCD, axis=2)
-qcd_maxval = qcd_maxval_temp[:,:,-1]
-norma = qcd_maxval_temp / np.maximum(1e-10,qcd_maxval[:,:,np.newaxis])
-
-hist_y_QCD = deepcopy(hists['ddthistak8'])
-template = hist_y_QCD.sum('pnethqqqq',) #pt, rho base
-hist_y_QCD.clear()
-hist_y_QCD._sumw = {():norma}
-
-res = np.apply_along_axis(lambda norma: norma.searchsorted(0.01), axis = 2, arr = norma)
-res[res>1000]=1
-qmap = (res - 1) / 1000
-qmap
-
-template.clear()
-template._sumw = {():qmap}
-template.label = 'cut at ' + str(int(1)) + '%'
-
-hist.plot2d(template.sum('sample'), xaxis = "rho", patch_opts={'norm': mpl.colors.LogNorm(), 'vmax': 0.5})
-
-# save(template, '../boostedhiggs/ddtmap_%s.coffea'%postfix)
-plot(template, 'ddt_%i_%s'%(int(100*percentile),postfix))
-
-
-
-plt.clf()
-
-#ax = hist.plot2d(template, xaxis = "jet_rho",  patch_opts={"vmin":0.5, "vmax":0.99})#,xoverflow='all',yoverflow='all')
-ax = hist.plot2d(template, xaxis = "rho",  patch_opts={"vmin":0.5, "vmax":1.})#,xoverflow='all',yoverflow='all')
-cmstext = plt.text(0.0, 1., "CMS",fontsize=12,horizontalalignment='left',verticalalignment='bottom', fontweight='bold',transform=ax.transAxes)
-addtext = plt.text(0.11, 1., "Simulation Preliminary",fontsize=10,horizontalalignment='left',verticalalignment='bottom', style='italic', transform=ax.transAxes)
-
-plt.ylim(200,1200)
-plt.xlim(-5.5,-2)
+ddttemplate(events_bb_sorted, ak15=False, name="")
+ddttagger(events_bb_sorted, ak15=False, name="")
 
 # events_bb_sorted_triggered = {}
 # fatjet_vars = ["Pt", "MassSD", "Mass", "PNetMDXbb", "PNetHqqqq"]
@@ -863,33 +1125,34 @@ plt.xlim(-5.5,-2)
 
 
 events_ak15bb_sorted = {}
+fatjet_vars = ["Pt", "MassSD", "PNetHqqqq", "PNetMDXbb"]
 
 for s, evts in evtDict.items():
     if s != "HH4V" and s != 'HH4b':
         triggered = evts[triggers17[0]]
         for i in range(1, len(triggers17)): triggered = triggered + evts[triggers17[i]]
 
-        pnet_key = "PNetXbb_alt"  # if s == "HHbbVV4q" else "PNetXbb"
         jet1_bb_leading = evts["ak15fatJet1PNetMDXbb"] > evts["ak15fatJet2PNetMDXbb"]
 
         ak_dict =   {
-                        "fatJet1PNetXbb": (evts["fatJet1" + pnet_key] * jet1_bb_leading + evts["fatJet2" + pnet_key] * ~jet1_bb_leading),
-                        "fatJet2PNetXbb": (evts["fatJet1" + pnet_key] * ~jet1_bb_leading + evts["fatJet2" + pnet_key] * jet1_bb_leading),
                         "weight": weights[s],
+                        "triggered": triggered
                     }
 
         for var in fatjet_vars:
-            if var != "PNetMDXbb":
-                ak_dict["fatJet1" + var] = (evts["fatJet1" + var] * jet1_bb_leading + evts["fatJet2" + var] * ~jet1_bb_leading)
-                ak_dict["fatJet2" + var] = (evts["fatJet1" + var] * ~jet1_bb_leading + evts["fatJet2" + var] * jet1_bb_leading)
-            if var != "PNetHqqqq":
-                ak_dict["ak15fatJet1" + var] = (evts["ak15fatJet1" + var] * jet1_bb_leading + evts["ak15fatJet2" + var] * ~jet1_bb_leading)
-                ak_dict["ak15fatJet2" + var] = (evts["ak15fatJet1" + var] * ~jet1_bb_leading + evts["ak15fatJet2" + var] * jet1_bb_leading)
+            ak_dict["ak15fatJet1" + var] = (evts["ak15fatJet1" + var] * jet1_bb_leading + evts["ak15fatJet2" + var] * ~jet1_bb_leading)
+            ak_dict["ak15fatJet2" + var] = (evts["ak15fatJet1" + var] * ~jet1_bb_leading + evts["ak15fatJet2" + var] * jet1_bb_leading)
 
         events_ak15bb_sorted[s] = ak.zip(ak_dict)
 
 events_ak15bb_sorted
 
+filehandler = open('events_ak15bb_sorted.obj', 'wb')
+pickle.dump(events_ak15bb_sorted, filehandler)
+filehandler.close()
+
+ddttemplate(events_ak15bb_sorted, ak15=True, name="")
+ddttagger(events_ak15bb_sorted, ak15=True, name="")
 
 events_8bb_15VV_sorted = {}
 fatjet_vars = ["Pt", "MassSD"]
@@ -942,6 +1205,7 @@ for s, evts in evtDict.items():
                         "fatJet1PNetXbb": (evts["fatJet1" + pnet_key] * jet1_bb_leading + evts["fatJet2" + pnet_key] * ~jet1_bb_leading),
                         "ak15fatJet2PNetHqqqq": (evts["ak15fatJet1PNetHqqqq"] * jet1_VV_cand + evts["ak15fatJet2PNetHqqqq"] * ~jet1_VV_cand),
                         "weight": weights[s],
+                        "triggered": triggered
                     }
 
         for var in fatjet_vars:
@@ -953,6 +1217,10 @@ for s, evts in evtDict.items():
         events_8bb_15VV_sorted[s] = ak.zip(ak_dict)
 
 events_8bb_15VV_sorted
+
+filehandler = open('events_8bb_15VV_sorted.obj', 'wb')
+pickle.dump(events_8bb_15VV_sorted, filehandler)
+filehandler.close()
 
 
 events_8bb_15VV_sorted = {}
@@ -1139,10 +1407,6 @@ plt.show()
 
 
 
-triggers17
-
-
-
 events_bb_sorted_triggered = {}
 fatjet_vars = ["Pt", "MassSD", "PNetHqqqq"]
 
@@ -1230,7 +1494,7 @@ events_bb_sorted_triggered
 
 
 
-def cutflow_func(var_cuts, events=events_bb_sorted):
+def cutflow_func(var_cuts, events):
     cutflow = {}
     events_cuts = {}
     for s, evts in events.items():
@@ -1267,7 +1531,7 @@ def cftable_func(cutflow, var_cuts, cut_idx=None):
 
     for var, cuts in var_cuts.items():
         varname = var.split('fat')[-1]
-        if cuts[0] > 0: cut_labels.append("{} > {}".format(varname, cuts[0]))
+        if cuts[0] > 0 or "DDT" in varname: cut_labels.append("{} > {}".format(varname, cuts[0]))
         if cuts[1] < 9999: cut_labels.append("{} < {}".format(varname, cuts[1]))
 
     if cut_idx is None:
@@ -1292,7 +1556,10 @@ var_cuts = {
     "fatJet2MassSD": [20, 9999],
 }
 
-hhbbVV_cutflow, events_bbs_ak8_cuts = cutflow_func(var_cuts)
+hhbbVV_cutflow, events_bbs_ak8_cuts = cutflow_func(var_cuts, events_bb_sorted)
+
+ddttemplate(events_bbs_ak8_cuts, ak15=False, name="NtupleCuts")
+ddttagger(events_bbs_ak8_cuts, ak15=False, name="NtupleCuts")
 
 cftable = cftable_func(hhbbVV_cutflow, var_cuts)
 cftable
@@ -1324,6 +1591,9 @@ var_cuts = {
 }
 
 hhbbVV_cutflow, events_bbs_ak15_cuts = cutflow_func(var_cuts, events_ak15bb_sorted)
+ddttemplate(events_bbs_ak15_cuts, ak15=True, name="NtupleCuts")
+ddttagger(events_bbs_ak15_cuts, ak15=True, name="NtupleCuts")
+
 
 cftable = cftable_func(hhbbVV_cutflow, var_cuts)
 cftable
@@ -1350,6 +1620,91 @@ plot_hists(var, "jetak8_ntuple_cuts_masssd", bins, name="bb_sorted_all_cut", hh4
 init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sortedak15_all_cut", bbsorted=True)
 fill_hists(var, fatJet=True, scale=False, name="bb_sortedak15_all_cut", pevtDict=events_bbs_ak15_cuts, useEDWeights=True)
 plot_hists(var, "jetak15_ntuple_cuts_masssd", bins, name="bb_sortedak15_all_cut", hh4v=False, sepsig=False, lumilabel=40, stackall=True, data=True, ratio=False, blinding=[115, 145])
+
+
+
+
+
+# tagger cuts only ak15
+
+tagger_cuts = {
+    "ak15fatJet1PNetMDXbb": [0, 9999],
+    "ak15fatJet2PNetHqqqq": [0.94, 9999],
+}
+
+cutflow, events_ak15bbs_tagger_cuts = cutflow_func(tagger_cuts, events_bbs_ak15_cuts)
+# cftable = cftable_func(cutflow, tagger_cuts)
+# cftable
+
+var = "MassSD"
+varl = "Soft Drop Mass (GeV)"
+bins =  [7, 70, 175]
+init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sortedak15_tagger_cut", bbsorted=True)
+fill_hists(var, fatJet=True, scale=False, name="bb_sortedak15_tagger_cut", pevtDict=events_ak15bbs_tagger_cuts, useEDWeights=True, ak15=True)
+plot_hists(var, "jetak15_loose_tagger_cuts_{}_{}_masssd_rat".format(tagger_cuts["ak15fatJet1PNetMDXbb"][0], tagger_cuts["ak15fatJet2PNetHqqqq"][0]), bins, ak15=True, name="bb_sortedak15_tagger_cut", hh4v=False, sepsig=False, lumilabel=40, stackall=True, data=True, ratio=False, rat_ylim=2.5, blinding=[115, 145])
+
+
+# tagger cuts only ak8
+
+tagger_cuts = {
+    "fatJet1PNetXbb": [0, 9999],
+    "fatJet2PNetHqqqq": [0.94, 9999],
+}
+
+cutflow, events_ak8bbs_tagger_cuts = cutflow_func(tagger_cuts, events_bbs_ak8_cuts)
+# cftable = cftable_func(cutflow, tagger_cuts)
+# cftable
+
+var = "MassSD"
+varl = "Soft Drop Mass (GeV)"
+bins =  [7, 70, 175]
+init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sorted_tagger_cut", bbsorted=True)
+fill_hists(var, fatJet=True, scale=False, name="bb_sorted_tagger_cut", pevtDict=events_ak8bbs_tagger_cuts, useEDWeights=True)
+plot_hists(var, "jetak8_loose_tagger_cuts_{}_{}_masssd".format(tagger_cuts["fatJet1PNetXbb"][0], tagger_cuts["fatJet2PNetHqqqq"][0]), bins, name="bb_sorted_tagger_cut", hh4v=False, sepsig=False, lumilabel=40, stackall=True, data=True, ratio=False, rat_ylim=2.5, blinding=[115, 145])
+
+
+
+
+
+# tagger cuts only ak15
+
+tagger_cuts = {
+    "ak15fatJet1PNetMDXbb": [0, 9999],
+    "ak15fatJet2PNetHqqqqNtupleCutsDDT990": [0, 9999],
+}
+
+cutflow, events_ak15bbs_tagger_cuts = cutflow_func(tagger_cuts, events_bbs_ak15_cuts)
+# cftable = cftable_func(cutflow, tagger_cuts)
+# cftable
+
+var = "MassSD"
+varl = "Soft Drop Mass (GeV)"
+bins =  [7, 70, 175]
+init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sortedak15_tagger_cut", bbsorted=True)
+fill_hists(var, fatJet=True, scale=False, name="bb_sortedak15_tagger_cut", pevtDict=events_ak15bbs_tagger_cuts, useEDWeights=True, ak15=True)
+plot_hists(var, "jetak15_loose_taggerddt_cuts_{}_masssd_rat".format(tagger_cuts["ak15fatJet1PNetMDXbb"][0]), bins, ak15=True, name="bb_sortedak15_tagger_cut", hh4v=False, sepsig=False, lumilabel=40, stackall=True, data=True, ratio=False, rat_ylim=2.5, blinding=[115, 145])
+
+# tagger cuts only ak8
+
+tagger_cuts = {
+    "fatJet1PNetXbb": [0.1, 9999],
+    "fatJet2PNetHqqqqDDT990": [0, 9999],
+    # "fatJet2PNetHqqqqNtupleCutsDDT990": [0, 9999],
+}
+
+cutflow, events_ak8bbs_tagger_cuts = cutflow_func(tagger_cuts, events_bbs_ak8_cuts)
+cftable = cftable_func(cutflow, tagger_cuts)
+cftable
+
+var = "MassSD"
+varl = "Soft Drop Mass (GeV)"
+bins =  [7, 70, 175]
+init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sorted_tagger_cut", bbsorted=True)
+fill_hists(var, fatJet=True, scale=False, name="bb_sorted_tagger_cut", pevtDict=events_ak8bbs_tagger_cuts, useEDWeights=True)
+plot_hists(var, "jetak8_loose_taggerddt_cuts_{}_masssd".format(tagger_cuts["fatJet1PNetXbb"][0]), bins, name="bb_sorted_tagger_cut", hh4v=False, sepsig=False, lumilabel=40, stackall=True, data=True, ratio=False, rat_ylim=2.5, blinding=[115, 145])
+
+
+
 
 
 
@@ -1390,6 +1745,7 @@ kin_cuts = {
 
 cutflow, events_ak15bbs_kin_cuts = cutflow_func(kin_cuts, events_ak15bb_sorted)
 
+ddttemplate(events_ak15bbs_kin_cuts, ak15=True)
 
 # var = "PNetMDXbb"
 # varl = "PNetXbb Score"
@@ -1417,6 +1773,8 @@ kin_cuts = {
 
 cutflow, events_bbs_kin_cuts = cutflow_func(kin_cuts)
 
+ddttemplate(events_bbs_kin_cuts, ak15=False)
+ddttagger(events_bbs_kin_cuts, ak15=False)
 
 tagger2d_plots('tagger2d_kin_cuts', events_bbs_kin_cuts, events_ak15bbs_kin_cuts, vmaxhh=0.005, vmaxqcd=10)
 
@@ -1481,48 +1839,6 @@ for pnetcutoff in np.arange(0.99, 0.995, 0.001)[:-1]:
 
 
 
-
-
-# tagger cuts only ak15
-
-tagger_cuts = {
-    "ak15fatJet1PNetMDXbb": [0, 9999],
-    "ak15fatJet2PNetHqqqq": [0.1, 9999],
-}
-
-cutflow, events_ak15bbs_tagger_cuts = cutflow_func(tagger_cuts, events_bbs_ak15_cuts)
-# cftable = cftable_func(cutflow, tagger_cuts)
-# cftable
-
-1.125/170000
-
-# tagger cuts only ak8
-
-tagger_cuts = {
-    "fatJet1PNetXbb": [0, 9999],
-    "fatJet2PNetHqqqq": [0.1, 9999],
-}
-
-cutflow, events_ak8bbs_tagger_cuts = cutflow_func(tagger_cuts, events_bbs_ak8_cuts)
-# cftable = cftable_func(cutflow, tagger_cuts)
-# cftable
-
-0.971 / 109000
-
-# ak815_comp_plot(["Pt", "MassSD"], ["$p_T$ (GeV)", "Soft Drop Mass (GeV)"], [[20, 250, 500], [25, 50, 200]], events_ak8bbs_tagger_cuts, events_ak15bbs_tagger_cuts, "ak815_tagger_cuts", qcd=True)
-# ak815_comp_plot(["Pt", "MassSD"], ["$p_T$ (GeV)", "Soft Drop Mass (GeV)"], [[20, 250, 500], [25, 50, 200]], events_ak8bbs_tagger_cuts, events_ak15bbs_tagger_cuts, "ak815_tagger_cuts_no_qcd", qcd=False)
-
-var = "MassSD"
-varl = "Soft Drop Mass (GeV)"
-bins =  [7, 70, 175]
-init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sorted_tagger_cut", bbsorted=True)
-fill_hists(var, fatJet=True, scale=False, name="bb_sorted_tagger_cut", pevtDict=events_ak8bbs_tagger_cuts, useEDWeights=True)
-plot_hists(var, "jetak8_loose_tagger_cuts_{}_{}_masssd_rat".format(tagger_cuts["fatJet1PNetXbb"][0], tagger_cuts["fatJet2PNetHqqqq"][0]), bins, name="bb_sorted_tagger_cut", hh4v=False, sepsig=False, lumilabel=40, stackall=True, data=True, ratio=True, rat_ylim=2.5, blinding=[115, 145])
-
-
-init_hists(var, varl, bins, scale=False, fatJet=True, name="bb_sortedak15_tagger_cut", bbsorted=True)
-fill_hists(var, fatJet=True, scale=False, name="bb_sortedak15_tagger_cut", pevtDict=events_ak15bbs_tagger_cuts, useEDWeights=True)
-plot_hists(var, "jetak15_loose_tagger_cuts_{}_{}_masssd_rat".format(tagger_cuts["fatJet1PNetXbb"][0], tagger_cuts["fatJet2PNetHqqqq"][0]), bins, name="bb_sortedak15_tagger_cut", hh4v=False, sepsig=False, lumilabel=40, stackall=True, data=True, ratio=True, rat_ylim=2.5, blinding=[115, 145])
 
 
 
@@ -1602,7 +1918,7 @@ var_cuts = {
     "ak15fatJet1MassSD": [110, 140],
     "ak15fatJet2MassSD": [115, 145],
     "ak15fatJet1PNetMDXbb": [0.99, 9999],
-    "ak15fatJet2PNetHqqqq": [0.935, 9999],
+    "ak15fatJet2PNetHqqqqDDT990": [0, 9999],
 }
 
 hhbbVV_cutflow = cutflow_func(var_cuts, events_ak15bb_sorted)[0]
@@ -1621,7 +1937,7 @@ var_cuts = {
     "ak15fatJet1MassSD": [110, 140],
     # "ak15fatJet2MassSD": [115, 145],
     "ak15fatJet1PNetMDXbb": [0.99, 9999],
-    "ak15fatJet2PNetHqqqq": [0.935, 9999],
+    "ak15fatJet2PNetHqqqqDDT990": [0, 9999],
 }
 
 cutflow, events_ak15bbs_nomass2_cuts = cutflow_func(var_cuts, events_ak15bb_sorted)
@@ -1662,15 +1978,33 @@ var_cuts = {
     "fatJet1MassSD": [110, 140],
     "fatJet2MassSD": [115, 145],
     "fatJet1PNetXbb": [0.99, 9999],
-    "fatJet2PNetHqqqq": [0.96, 9999],
+    # "fatJet2PNetHqqqqDDT990": [0, 9999],
 }
 
-hhbbVV_cutflow = cutflow_func(var_cuts, events_bbs_ak8_cuts)[0]
+hhbbVV_cutflow, events_nopneth4q = cutflow_func(var_cuts, events_bbs_ak8_cuts)
 
 cftable = cftable_func(hhbbVV_cutflow, var_cuts)
 cftable
 
-cftable.to_csv('hhbbVV_cutflow_triggered.csv')
+cftable.to_csv('hhbbVV_cutflow.csv')
+
+
+ddttemplate(events_nopneth4q, name="all_cuts")
+ddttagger(events_nopneth4q, name="all_cuts")
+
+
+var_cuts = {
+    "fatJet2PNetHqqqqDDT990": [0, 9999],
+}
+
+hhbbVV_cutflow = cutflow_func(var_cuts, events_nopneth4q)[0]
+
+del(hhbbVV_cutflow['data'])
+
+cftable = cftable_func(hhbbVV_cutflow, var_cuts)
+cftable
+
+cftable.to_csv('hhbbVV_cutflow.csv')
 
 0.029/11
 
@@ -1684,7 +2018,7 @@ var_cuts = {
     "fatJet1MassSD": [110, 140],
     # "fatJet2MassSD": [115, 145],
     "fatJet1PNetXbb": [0.99, 9999],
-    "fatJet2PNetHqqqq": [0.96, 9999],
+    "fatJet2PNetHqqqqDDT990": [0, 9999],
 }
 
 cutflow, events_bbs_nomass2_cuts = cutflow_func(var_cuts, events_bbs_ak8_cuts)
