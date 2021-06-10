@@ -13,7 +13,7 @@ name = sys.argv[1].split(".coffea")[0]
 outfile = ROOT.TFile(name + ".root", "recreate")
 outfile.cd()
 
-h1 = ROOT.TH2F("h1", "h1", 100, 200, 1000, 100, -8, -0.5)
+h1 = ROOT.TH2F("h1", "h1", 100, 250, 1000, 100, -8, -0.5)
 
 print(h1.GetNbinsX())
 print(h1.GetNbinsY())
